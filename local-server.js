@@ -207,6 +207,66 @@ FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   return parseSqlJson(await runSql(script, { database: config.database }));
 }
 
+async function loginUser(body) {
+  const email = body.email;
+  const password = body.password;
+  const script = `
+SET NOCOUNT ON;
+DECLARE @Email NVARCHAR(255) = ${sqlString(email)};
+DECLARE @PasswordHash NVARCHAR(255) = ${sqlString(sha256(password))};
+DECLARE @UserId INT = NULL;
+DECLARE @FullName NVARCHAR(255);
+DECLARE @Phone NVARCHAR(50);
+DECLARE @Address NVARCHAR(MAX);
+DECLARE @PlanCode NVARCHAR(50);
+DECLARE @PendingPlanCode NVARCHAR(50);
+DECLARE @RegisteredAt DATETIME2(0);
+DECLARE @Balance DECIMAL(18,2) = 0;
+
+SELECT 
+  @UserId = u.UserId,
+  @FullName = u.FullName,
+  @Phone = u.Phone,
+  @Address = u.Address,
+  @PlanCode = u.PlanCode,
+  @PendingPlanCode = u.PendingPlanCode,
+  @RegisteredAt = u.RegisteredAt
+FROM dbo.B20Users u
+WHERE u.Email = @Email AND (u.PasswordHash = @PasswordHash OR u.PasswordHash IS NULL OR u.PasswordHash = '');
+
+IF @UserId IS NULL
+BEGIN
+  -- Check if email even exists
+  IF EXISTS(SELECT 1 FROM dbo.B20Users WHERE Email = @Email)
+    SELECT 'INVALID_PASSWORD' AS error FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  ELSE
+    SELECT 'NOT_FOUND' AS error FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+END
+ELSE
+BEGIN
+  SELECT @Balance = Balance FROM dbo.B30WalletAccounts WHERE UserId = @UserId;
+  SELECT 
+    @UserId AS userId, 
+    @FullName AS name, 
+    @Email AS email, 
+    @Phone AS phone, 
+    @Address AS address, 
+    @PlanCode AS [plan], 
+    @PendingPlanCode AS pendingPlan, 
+    @RegisteredAt AS registeredAt, 
+    @Balance AS balance
+  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+END
+`;
+  const result = parseSqlJson(await runSql(script, { database: config.database }));
+  if (result.error === 'NOT_FOUND') {
+    throw new Error('Tài khoản chưa tồn tại!');
+  } else if (result.error === 'INVALID_PASSWORD') {
+    throw new Error('Sai mật khẩu!');
+  }
+  return result;
+}
+
 async function saveWalletTransaction(body, type) {
   const amount = Math.abs(Number(body.amount || 0));
   const signedAmount = type === 'withdraw' ? -amount : amount;
@@ -544,6 +604,7 @@ async function handleApi(req, res) {
     let result;
 
     if (req.url === '/api/users/upsert') result = await saveUser(body);
+    else if (req.url === '/api/users/login') result = await loginUser(body);
     else if (req.url === '/api/subscriptions/activate') result = await activateSubscription(body);
     else if (req.url === '/api/wallet/deposit') result = await saveWalletTransaction(body, 'deposit');
     else if (req.url === '/api/wallet/withdraw') result = await saveWalletTransaction(body, 'withdraw');
