@@ -70,28 +70,54 @@
     async function handleLogin(e) {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value;
+      const pass = document.getElementById('loginPass').value;
       
-      // Lấy tài khoản từ localStorage nếu có
-      let user = JSON.parse(localStorage.getItem('emobox_user'));
-      
-      // Nếu không có tài khoản hoặc email không khớp, tạo mock user
-      if (!user || user.email !== email) {
-        user = {
-          name: 'Khách Hàng',
-          email: email,
-          phone: '',
-          address: '',
-          balance: 0,
-          plan: 'none',
-          pendingPlan: null,
-          registeredAt: new Date().toISOString()
-        };
+      try {
+        const response = await EmoBoxApi.loginUser(email, pass);
+        
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        
+        if (response.skipped) {
+          // Lấy tài khoản từ localStorage nếu API tắt
+          let user = JSON.parse(localStorage.getItem('emobox_user'));
+          if (!user || user.email !== email) {
+            user = {
+              name: 'Khách Hàng',
+              email: email,
+              phone: '',
+              address: '',
+              balance: 0,
+              plan: 'none',
+              pendingPlan: null,
+              registeredAt: new Date().toISOString()
+            };
+          }
+          localStorage.setItem('emobox_user', JSON.stringify(user));
+          await EmoBoxApi.upsertUser(user, { password: pass });
+          finishLogin(user);
+        } else {
+          const user = {
+            name: response.name || 'Khách Hàng',
+            email: response.email,
+            phone: response.phone || '',
+            address: response.address || '',
+            balance: response.balance || 0,
+            plan: response.plan || 'none',
+            pendingPlan: response.pendingPlan || null,
+            registeredAt: response.registeredAt || new Date().toISOString()
+          };
+          localStorage.setItem('emobox_user', JSON.stringify(user));
+          finishLogin(user);
+        }
+      } catch (err) {
+        showToast('⚠ ' + err.message);
       }
-      
-      localStorage.setItem('emobox_user', JSON.stringify(user));
-      await EmoBoxApi.upsertUser(user, { password: document.getElementById('loginPass').value });
+    }
+    
+    function finishLogin(user) {
       showToast('🎉 Đăng nhập thành công! Chào mừng bạn quay lại.');
-      
       setTimeout(() => {
         if (user.pendingPlan && user.pendingPlan !== 'none') {
           window.location.href = 'plan-payment.html';
