@@ -291,15 +291,15 @@ function showWithdrawModal() {
         
         <div style="margin-bottom: 1rem;">
           <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Ngân hàng</label>
-          <input type="text" id="wdBank" placeholder="VD: Vietcombank" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px;">
+          <input type="text" id="wdBank" placeholder="VD: Vietcombank" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px;" required minlength="2">
         </div>
         <div style="margin-bottom: 1rem;">
           <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Số tài khoản</label>
-          <input type="text" id="wdAcc" placeholder="Nhập số tài khoản" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px;">
+          <input type="text" id="wdAcc" placeholder="Nhập số tài khoản" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px;" required pattern="^[0-9]+$" title="Số tài khoản chỉ chứa chữ số">
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Chủ tài khoản</label>
-          <input type="text" id="wdName" placeholder="Tên in hoa không dấu" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px;">
+          <input type="text" id="wdName" placeholder="Tên in hoa không dấu" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px;" required pattern="^[a-zA-Z\\s]+$" title="Tên in trên thẻ không dấu">
         </div>
 
         <button onclick="confirmWithdraw()" class="btn btn-primary" style="width: 100%; height: 48px;">Xác nhận rút tiền</button>
@@ -311,14 +311,18 @@ function showWithdrawModal() {
 }
 
 async function confirmWithdraw() {
-  const bank = document.getElementById('wdBank').value;
-  const acc = document.getElementById('wdAcc').value;
-  const name = document.getElementById('wdName').value;
+  const bank = document.getElementById('wdBank');
+  const acc = document.getElementById('wdAcc');
+  const name = document.getElementById('wdName');
   
-  if (!bank || !acc || !name) {
-    alert("Vui lòng điền đầy đủ thông tin ngân hàng!");
+  if (!bank.value || !acc.value || !name.value || !bank.checkValidity() || !acc.checkValidity() || !name.checkValidity()) {
+    alert("Vui lòng điền đầy đủ và đúng định dạng thông tin ngân hàng!");
     return;
   }
+  
+  const bankVal = bank.value;
+  const accVal = acc.value;
+  const nameVal = name.value;
 
   const user = JSON.parse(localStorage.getItem('emobox_user'));
   const withdrawAmount = user.balance || 0;
@@ -328,9 +332,9 @@ async function confirmWithdraw() {
   localStorage.setItem('emobox_user', JSON.stringify(user));
   if (window.EmoBoxApi) {
     await EmoBoxApi.recordWalletWithdrawal(user, withdrawAmount, {
-      bank,
-      accountNumber: acc,
-      accountName: name
+      bank: bankVal,
+      accountNumber: accVal,
+      accountName: nameVal
     });
   }
 
