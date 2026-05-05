@@ -1,5 +1,8 @@
 (function () {
+  const isLocalHost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+  const isVercel = window.location.hostname.endsWith('.vercel.app');
   const apiBase = window.EMOBOX_API_BASE || (window.location.protocol === 'file:' ? 'http://localhost:3000' : '');
+  const apiEnabled = Boolean(window.EMOBOX_API_BASE) || (isLocalHost && !isVercel);
 
   function toNumber(value, fallback) {
     const num = Number(value);
@@ -21,6 +24,10 @@
   }
 
   async function request(path, payload) {
+    if (!apiEnabled) {
+      return { ok: false, skipped: true };
+    }
+
     try {
       const response = await fetch(apiBase + path, {
         method: 'POST',
