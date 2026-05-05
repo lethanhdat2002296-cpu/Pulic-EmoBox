@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng Ký - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc; padding: 2rem; }
+    .auth-card { background: white; border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.08); width: 100%; max-width: 540px; padding: 3rem; margin: 2rem 0; }
+    .auth-header { text-align: center; margin-bottom: 2.5rem; }
+    .auth-logo { font-size: 2rem; margin-bottom: 1rem; display: block; }
+    
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
+    .form-input { width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: border-color 0.2s; }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+    
+    .auth-footer { text-align: center; margin-top: 2rem; font-size: 0.875rem; color: var(--text-muted); }
+    .auth-footer a { color: var(--primary); font-weight: 700; text-decoration: none; }
+    
+    .plan-options { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem; }
+    .plan-opt { border: 1px solid var(--border); border-radius: 12px; padding: 1rem; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; transition: 0.2s; background: white; }
+    .plan-opt.active { border-color: #0ea5e9; border-width: 2px; background: #f0f9ff; }
+    .plan-opt input[type="radio"] { margin-top: 0.2rem; cursor: pointer; }
+    .plan-opt-content { flex: 1; }
+    .plan-opt-label { font-weight: 600; font-size: 0.95rem; color: #0f172a; }
+    .plan-opt-price { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a href="index.html" class="auth-logo" style="text-decoration: none; display: flex; justify-content: center;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 40px; object-fit: contain;">
+        </a>
+        <h2 style="font-weight: 800; margin-bottom: 0.5rem;">Tạo tài khoản mới</h2>
+        <p style="color: var(--text-muted);">Gia nhập EmoBox và lan tỏa yêu thương</p>
+      </div>
+
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label">Họ và Tên</label>
+          <input type="text" class="form-input" id="regName" placeholder="Nguyễn Văn A" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Địa chỉ Email</label>
+          <input type="email" class="form-input" id="regEmail" placeholder="name@company.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Số điện thoại</label>
+          <input type="tel" class="form-input" id="regPhone" placeholder="0912345678" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mật khẩu</label>
+          <input type="password" class="form-input" id="regPass" placeholder="••••••••" required>
+        </div>
+        
+        <div class="form-group" style="margin-top: 2rem;">
+          <label class="form-label" style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Chọn gói thành viên</label>
+          <div class="plan-options">
+            <label class="plan-opt active" onclick="selectPlan(this)">
+              <input type="radio" name="plan" value="none" checked>
+              <div class="plan-opt-content">
+                <div class="plan-opt-label">Thành viên thường</div>
+                <div class="plan-opt-price">Không đăng ký gói (Miễn phí)</div>
+              </div>
+            </label>
+            <label class="plan-opt" onclick="selectPlan(this)">
+              <input type="radio" name="plan" value="3-months">
+              <div class="plan-opt-content">
+                <div class="plan-opt-label">Gói 3 Tháng</div>
+                <div class="plan-opt-price">299.000 đ</div>
+              </div>
+            </label>
+            <label class="plan-opt" onclick="selectPlan(this)">
+              <input type="radio" name="plan" value="6-months">
+              <div class="plan-opt-content">
+                <div class="plan-opt-label">Gói 6 Tháng</div>
+                <div class="plan-opt-price">499.000 đ</div>
+              </div>
+            </label>
+            <label class="plan-opt" onclick="selectPlan(this)">
+              <input type="radio" name="plan" value="12-months">
+              <div class="plan-opt-content">
+                <div class="plan-opt-label">Gói 12 Tháng</div>
+                <div class="plan-opt-price">799.000 đ</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; height: 50px; font-size: 1rem; margin-top: 1.5rem;">Đăng ký</button>
+      </form>
+
+      <div class="auth-footer">
+        Bạn đã có tài khoản? <a href="login.html">Đăng nhập</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    function selectPlan(labelEl) {
+      document.querySelectorAll('.plan-opt').forEach(opt => opt.classList.remove('active'));
+      labelEl.classList.add('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const planParam = urlParams.get('plan');
+      if (planParam) {
+        const radio = document.querySelector(`input[name="plan"][value="${planParam}"]`);
+        if (radio) {
+          radio.checked = true;
+          selectPlan(radio.closest('.plan-opt'));
+        }
+      }
+    });
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const pass = document.getElementById('regPass').value;
+      const selectedPlan = document.querySelector('input[name="plan"]:checked').value;
+      
+      // Basic Validation
+      if (pass.length < 6) {
+        showToast('Mật khẩu phải có ít nhất 6 ký tự!');
+        return;
+      }
+      
+      // Phone validation (exactly 10 digits)
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phone)) {
+        showToast('Số điện thoại không hợp lệ (phải gồm 10 chữ số)!');
+        return;
+      }
+      
+      const user = {
+        name: name,
+        email: email,
+        phone: phone,
+        address: '',
+        balance: 0,
+        plan: 'none',
+        pendingPlan: selectedPlan,
+        registeredAt: new Date().toISOString()
+      };
+      
+      localStorage.setItem('emobox_user', JSON.stringify(user));
+      await EmoBoxApi.upsertUser(user, { password: pass });
+      showToast('🎉 Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
+      
+      setTimeout(() => {
+        window.location.href = 'login.html';
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

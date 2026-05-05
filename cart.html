@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giỏ Hàng - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f8fafc; }
+    .cart-container { padding-top: 4rem; padding-bottom: 6rem; }
+    .cart-layout { display: grid; grid-template-columns: 1fr 380px; gap: 2.5rem; }
+    
+    .cart-item { background: white; border-radius: 20px; border: 1px solid var(--border); padding: 1.5rem; display: flex; gap: 1.5rem; align-items: center; position: relative; }
+    
+    .cart-item-img { width: 110px; height: 110px; border-radius: 16px; object-fit: cover; background: #f1f5f9; flex-shrink: 0; }
+    .cart-item-info { flex: 1; }
+    .cart-item-info h4 { margin-bottom: 0.25rem; font-size: 1.1rem; color: #0f172a; }
+    .cart-item-info p { font-size: 0.85rem; color: var(--text-muted); }
+    
+    .cart-item-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 1.25rem; width: 100%; }
+    .cart-qty { display: flex; align-items: center; gap: 1rem; border: 1px solid var(--border); background: #f8fafc; border-radius: 12px; padding: 0.3rem 1rem; }
+    .qty-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-main); display: flex; align-items: center; justify-content: center; }
+    
+    .cart-item-price { font-weight: 800; font-size: 1.1rem; color: #0f172a; }
+    
+    .delete-btn { position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.2rem; transition: 0.2s; }
+    .delete-btn:hover { color: #ef4444; }
+
+    .summary-card { background: white; padding: 2rem; border-radius: 20px; border: 1px solid var(--border); position: sticky; top: 100px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.02); }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 1.25rem; color: var(--text-muted); font-size: 0.95rem; }
+    .summary-total { border-top: 1px solid var(--border); margin-top: 1.5rem; padding-top: 1.5rem; font-weight: 800; font-size: 1.1rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
+    
+    .empty-cart { text-align: center; padding: 4rem 0; }
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; display: block; }
+
+    .promo-banner { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 1.5rem; text-align: center; margin-top: 1rem; }
+
+    @media (max-width: 992px) {
+      .cart-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing & Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item active">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container cart-container">
+    <div class="section-header" style="text-align: left; margin-bottom: 2rem;">
+      <h1 class="section-title" style="font-family: var(--font-serif); font-size: 2rem;">Giỏ Hàng Của Bạn</h1>
+    </div>
+
+    <div class="cart-layout" id="cartLayout">
+      <!-- Items Column -->
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div id="cartItemsList" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Rendered by JS -->
+        </div>
+        
+        <div class="promo-banner">
+          <p style="color: #0369a1; font-weight: 600; margin-bottom: 0.75rem; font-size: 0.95rem;">Đăng ký mua gói để được miễn phí giao hàng ngay hôm nay!</p>
+          <a href="plans.html" style="background: white; color: #0284c7; border: 1px solid #bae6fd; padding: 0.4rem 1.2rem; border-radius: 999px; font-weight: 500; font-size: 0.9rem; text-decoration: none; display: inline-block; transition: 0.2s;">Xem Các Gói</a>
+        </div>
+      </div>
+
+      <!-- Summary Column -->
+      <aside>
+        <div class="summary-card">
+          <h3 style="margin-bottom: 1.5rem; font-weight: 700; color: #0f172a; font-size: 1.1rem;">Tóm tắt đơn hàng</h3>
+          <div class="summary-row">
+            <span>Tạm tính</span>
+            <span id="subtotal" style="font-weight: 600; color: #0f172a;">0 đ</span>
+          </div>
+          <div class="summary-row">
+            <span>Phí Giao Hàng</span>
+            <span style="font-size: 0.85rem; text-align: right; width: 140px;">Được tính ở bước Thanh toán</span>
+          </div>
+          <div class="summary-total">
+            <span>Tổng cộng</span>
+            <span id="totalPrice" style="color: #0284c7; font-size: 1.75rem; font-weight: 800;">0 đ</span>
+          </div>
+
+          <button onclick="gotoCheckout()" class="btn" style="width: 100%; height: 56px; margin-top: 1.5rem; font-size: 1.05rem; font-weight: 600; background: #0f172a; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 12px; transition: 0.2s;">
+            Tiến đến Thanh Toán <span style="font-size: 1.2rem;">→</span>
+          </button>
+          
+          <div style="text-align: center; margin-top: 1.25rem;">
+            <a href="index.html" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem;">← Tiếp tục khám phá</a>
+          </div>
+
+          <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">
+              <span style="color: #10b981; font-size: 1.1rem;">🛡️</span> 
+              <span>Thanh toán bảo mật an toàn</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">
+              <span style="color: #3b82f6; font-size: 1.1rem;">💳</span> 
+              <span>Chấp nhận đa dạng hình thức thanh toán</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="emptyCartView" class="empty-cart" style="display: none;">
+      <span class="empty-icon">🛒</span>
+      <h2 style="font-family: var(--font-serif); margin-bottom: 0.5rem;">Giỏ hàng đang trống</h2>
+      <p style="color: var(--text-muted); margin-bottom: 2rem;">Có vẻ như bạn chưa chọn được hộp quà nào cho mình.</p>
+      <a href="finder.html" class="btn btn-primary">Khám phá quà tặng ngay</a>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let cartTotal = 0;
+
+    function renderCart() {
+      const list = document.getElementById('cartItemsList');
+      const layout = document.getElementById('cartLayout');
+      const emptyView = document.getElementById('emptyCartView');
+      
+      if (cart.length === 0) {
+        layout.style.display = 'none';
+        emptyView.style.display = 'block';
+        return;
+      }
+
+      layout.style.display = 'grid';
+      emptyView.style.display = 'none';
+
+      let total = 0;
+
+      function renderItems(itemsArray) {
+        return itemsArray.map(item => {
+          let name = '';
+          let desc = '';
+          let image = '';
+          let itemPrice = 0;
+          let itemTotal = 0;
+
+          if (item.isPkg) {
+            name = item.name;
+            image = item.image ? `<img src="${item.image}" class="cart-item-img">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:linear-gradient(135deg,#e0f2fe,#bae6fd);">🎁</div>`;
+            
+            if (item.id && item.id.startsWith('evt_')) {
+              let details = [...(item.fixedItems || []), ...(item.selectedPicks || [])].filter(Boolean).join(', ');
+              desc = `
+                <span style="color:#0284c7;font-size:0.85rem;font-weight:600;">📅 Đặt lịch quà tặng cho: ${item.recipient || 'Người nhận'}</span>
+                <span style="display:block; color:var(--text-muted); font-size:0.8rem; margin-top:0.35rem;">📍 ${item.address || 'Chưa cập nhật địa chỉ'} | 📞 ${item.phone || 'Chưa có SĐT'}</span>
+                <span style="display:block; color:var(--text-muted); font-size:0.8rem; margin-top:0.25rem;">🎁 Chi tiết: ${details || 'Chưa rõ'}</span>
+              `;
+            } else {
+              desc = `<span style="color:var(--text-muted);font-size:0.85rem;">Màu: Màu Sắc Đặc Trưng • Giấy Kraft Truyền Thống</span>`;
+            }
+            
+            if (item.priceNum || item.pkgPrice) {
+              itemPrice = item.priceNum || item.pkgPrice;
+              itemTotal = itemPrice * item.quantity;
+              if (item.selected !== false) {
+                total += itemTotal;
+              }
+            }
+          } else {
+            const box = FEATURED_BOXES.find(b => b.id === item.id) || FEATURED_BOXES[0];
+            name = box.name;
+            image = `<img src="${box.image}" class="cart-item-img">`;
+            desc = `<span style="color:var(--text-muted);font-size:0.85rem;">Màu: Màu Sắc Đặc Trưng • Giấy Kraft Truyền Thống</span>`;
+            itemPrice = box.price;
+            itemTotal = itemPrice * item.quantity;
+            if (item.selected !== false) {
+              total += itemTotal;
+            }
+          }
+
+          const isChecked = item.selected !== false ? 'checked' : '';
+
+          return `
+            <div class="cart-item">
+              <input type="checkbox" class="cart-item-check" ${isChecked} onchange="toggleSelect('${item.id}', this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
+              ${image}
+              <div class="cart-item-info">
+                <h4>${name}</h4>
+                <p>${desc}</p>
+                
+                <div class="cart-item-actions">
+                  <div class="cart-qty">
+                    <button class="qty-btn" onclick="updateQty('${item.id}', -1)">−</button>
+                    <span style="font-weight: 600; font-size: 0.95rem; width: 20px; text-align: center;">${item.quantity}</span>
+                    <button class="qty-btn" onclick="updateQty('${item.id}', 1)">+</button>
+                  </div>
+                  <div class="cart-item-price">${formatPrice(itemTotal)}</div>
+                </div>
+              </div>
+              <button class="delete-btn" onclick="removeFromCart('${item.id}')" title="Xóa sản phẩm">🗑️</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      let scheduledItems = cart.filter(i => i.id && i.id.startsWith('evt_'));
+      let normalItems = cart.filter(i => !(i.id && i.id.startsWith('evt_')));
+
+      let html = '';
+      if (normalItems.length > 0) {
+        html += `<h3 style="font-size:1.1rem; color:#0f172a; margin-bottom: 1rem;">🛍️ Sản phẩm mua ngay</h3>`;
+        html += renderItems(normalItems);
+      }
+      
+      if (scheduledItems.length > 0) {
+        html += `<h3 style="font-size:1.1rem; color:#0f172a; margin-bottom: 1rem; margin-top: ${normalItems.length > 0 ? '1.5rem' : '0'}">📅 Sản phẩm đặt lịch</h3>`;
+        html += renderItems(scheduledItems);
+      }
+
+      list.innerHTML = html;
+
+      document.getElementById('subtotal').textContent = formatPrice(total);
+      document.getElementById('totalPrice').textContent = formatPrice(total);
+      cartTotal = total;
+    }
+
+    function updateQty(id, delta) {
+      const item = cart.find(i => i.id === id);
+      if (item) {
+        item.quantity += delta;
+        if (item.quantity <= 0) {
+          cart = cart.filter(i => i.id !== id);
+        }
+        localStorage.setItem('emobox_cart', JSON.stringify(cart));
+        updateCartBadge();
+        renderCart();
+      }
+    }
+
+    function removeFromCart(id) {
+      cart = cart.filter(i => i.id !== id);
+      localStorage.setItem('emobox_cart', JSON.stringify(cart));
+      updateCartBadge();
+      renderCart();
+    }
+
+    function toggleSelect(id, checked) {
+      const item = cart.find(i => i.id === id);
+      if (item) {
+        item.selected = checked;
+        localStorage.setItem('emobox_cart', JSON.stringify(cart));
+        renderCart();
+      }
+    }
+
+    function gotoCheckout() {
+      const selectedItems = cart.filter(i => i.selected !== false);
+      if (selectedItems.length === 0) {
+        showToast('Vui lòng chọn ít nhất 1 sản phẩm để thanh toán!');
+        return;
+      }
+      
+      const hasScheduled = selectedItems.some(i => i.id && i.id.startsWith('evt_'));
+      const hasNormal = selectedItems.some(i => !(i.id && i.id.startsWith('evt_')));
+      
+      if (hasScheduled && hasNormal) {
+        showToast('⚠️ Không thể thanh toán chung “Sản phẩm mua ngay” và “Sản phẩm đặt lịch”. Vui lòng chọn từng nhóm để thanh toán riêng!', 5000);
+        return;
+      }
+      
+      localStorage.setItem('emobox_checkout_items', JSON.stringify(selectedItems));
+      window.location.href = 'checkout.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', renderCart);
+  </script>
+</body>
+</html>

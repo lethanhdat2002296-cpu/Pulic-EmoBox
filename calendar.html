@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lịch Tặng Quà - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .calendar-container { padding-top: 4rem; padding-bottom: 6rem; }
+    .cal-main-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; }
+    .cal-main-header .section-header { margin-bottom: 0; }
+    .cal-main-nav { background: white; padding: 0.5rem 1rem; border-radius: 999px; display: flex; align-items: center; gap: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); font-weight: 700; font-size: 1.1rem; }
+    .cal-main-nav button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0 0.5rem; transition: color 0.2s; }
+    .cal-main-nav button:hover { color: var(--primary); }
+
+    .main-calendar-card { background: white; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05); overflow: hidden; }
+    .cal-grid-lg { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--border); }
+    .cal-grid-lg.header { border-top: none; }
+    .cal-day-name-lg { padding: 1.2rem; text-align: center; font-size: 0.9rem; font-weight: 600; color: var(--text-muted); border-right: 1px solid var(--border); }
+    .cal-day-name-lg:last-child { border-right: none; }
+    
+    .cal-day-lg { min-height: 140px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 0.75rem; position: relative; transition: background 0.2s; cursor: pointer; display: flex; flex-direction: column; }
+    .cal-day-lg:nth-child(7n) { border-right: none; }
+    .cal-day-lg:hover { background: #f8fafc; }
+    .cal-day-lg.empty { color: #cbd5e1; cursor: pointer; }
+    .cal-day-lg.empty:hover { background: #f1f5f9; }
+    
+    .cal-day-number { text-align: right; font-size: 0.95rem; margin-bottom: 0.5rem; font-weight: 500; }
+    .cal-day-number.today { color: var(--primary); font-weight: 800; }
+    
+    .cal-event-pill { background: #e0f2fe; border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.4rem; transition: all 0.2s; }
+    .cal-event-pill:hover { background: #bae6fd; }
+    .cal-event-pill-title { color: #0284c7; font-size: 0.85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem; }
+    .cal-event-pill-sub { color: #0369a1; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    @media (max-width: 992px) {
+      .cal-main-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      .cal-grid-lg { grid-template-columns: repeat(7, minmax(120px, 1fr)); }
+      .main-calendar-card { overflow-x: auto; }
+      .main-calendar-card > .cal-grid-lg { min-width: 840px; }
+    }
+
+    /* Modal Styles */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 900; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+    .modal-content { background: white; border-radius: 24px; width: 90%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; transform: translateY(30px) scale(0.97); transition: transform 0.25s; box-shadow: 0 25px 60px -10px rgba(0,0,0,0.25); }
+    .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
+    .modal-header { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 1.25rem; font-weight: 800; margin: 0; }
+    .modal-close { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .modal-close:hover { background: #e2e8f0; }
+    .modal-body { padding: 1.5rem; overflow-y: auto; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
+    .form-input { width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; font-size: 0.95rem; transition: border-color 0.2s; box-sizing: border-box; }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+    .modal-footer { padding: 1.25rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem; }
+    .btn-cancel { background: #f1f5f9; color: var(--text-muted); border: none; font-weight: 600; padding: 0.8rem 1.2rem; border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+    .btn-cancel:hover { background: #e2e8f0; }
+    #eventForm { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
+
+    /* Custom Calendar inside Modal */
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .cal-month-year { font-weight: 700; font-size: 1.1rem; }
+    .cal-nav { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0.5rem; color: var(--text-muted); transition: color 0.2s; }
+    .cal-nav:hover { color: var(--primary); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; text-align: center; }
+    .cal-day-name { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); padding-bottom: 0.5rem; }
+    .cal-day { padding: 0.7rem 0; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; }
+    .cal-day:hover { background: #e0f2fe; color: var(--primary); font-weight: 600; }
+    .cal-day.empty { cursor: default; }
+    .cal-day.empty:hover { background: none; }
+
+    /* Pick Options (from occasion-gifts) */
+    .pick-option { display: flex; align-items: center; gap: 0.875rem; padding: 0.85rem 1rem; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 0.65rem; cursor: pointer; transition: all 0.18s; user-select: none; }
+    .pick-option:hover { border-color: #bae6fd; background: #f0f9ff; }
+    .pick-option.selected { border-color: var(--primary); background: #e0f2fe; }
+    .pick-option.disabled { opacity: 0.4; cursor: not-allowed; }
+    .pick-checkbox { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.18s; }
+    .pick-option.selected .pick-checkbox { background: var(--primary); border-color: var(--primary); color: white; font-size: 0.75rem; }
+    .pick-label { font-size: 0.92rem; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing & Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link active">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container calendar-container">
+    <div class="cal-main-header">
+      <div class="section-header">
+        <h1 class="section-title">Lịch Giao Quà</h1>
+        <p class="section-subtitle">Quản lý và đặt lịch giao các đơn hàng trong tháng. (Nhấn vào một ngày trống để thêm lịch)</p>
+      </div>
+      <div class="cal-main-nav">
+        <button onclick="changeMainMonth(-1)">❮</button>
+        <div id="mainCalMonthYear">Tháng 04 2026</div>
+        <button onclick="changeMainMonth(1)">❯</button>
+      </div>
+    </div>
+
+    <div class="main-calendar-card">
+      <div class="cal-grid-lg header">
+        <div class="cal-day-name-lg">T2</div>
+        <div class="cal-day-name-lg">T3</div>
+        <div class="cal-day-name-lg">T4</div>
+        <div class="cal-day-name-lg">T5</div>
+        <div class="cal-day-name-lg">T6</div>
+        <div class="cal-day-name-lg">T7</div>
+        <div class="cal-day-name-lg">CN</div>
+      </div>
+      <div class="cal-grid-lg" id="mainCalDays">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ADD EVENT MODAL -->
+  <div class="modal-overlay" id="eventModalOverlay" onclick="handleEventModalClick(event)">
+    <div class="modal-content" id="eventModal">
+      <div class="modal-header">
+        <h3 class="modal-title">Thêm sự kiện mới</h3>
+        <button class="modal-close" onclick="closeEventModal()">✕</button>
+      </div>
+      <form id="eventForm" onsubmit="addEvent(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Ngày tặng quà</label>
+            <input type="date" class="form-input" id="eventDate" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Người nhận</label>
+            <input type="text" class="form-input" id="eventRecipient" placeholder="Nhập tên người nhận" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Địa chỉ giao hàng</label>
+            <input type="text" class="form-input" id="eventAddress" placeholder="Nhập địa chỉ giao hàng" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input type="tel" class="form-input" id="eventPhone" placeholder="Nhập số điện thoại (10 số)" required pattern="(0|84)[0-9]{8,9}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="eventEmail" placeholder="Nhập email (@gmail.com)" required pattern=".+@gmail\.com$">
+          </div>
+          
+          <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border);">
+          <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">Cấu hình Gói Quà</h4>
+
+          <div class="form-group">
+            <label class="form-label">Phân loại quà</label>
+            <select class="form-input" id="eventGroup" onchange="handleEventGroupChange()">
+              <option value="occasion">Quà Lễ</option>
+              <option value="emotion">Quà Cảm Xúc</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Chủ đề quà</label>
+            <select class="form-input" id="eventCat" onchange="handleEventPkgChange()">
+              <!-- Options rendered by JS -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Gói quà (Mức giá)</label>
+            <select class="form-input" id="eventTier" onchange="handleEventPkgChange()">
+              <option value="mini">Gói Mini (99.000 đ)</option>
+              <option value="basic">Gói Basic (199.000 đ)</option>
+              <option value="standard">Gói Standard (399.000 đ)</option>
+              <option value="premium">Gói Premium Plus (599.000 đ)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Thanh toán bằng</label>
+            <select class="form-input" id="eventPaymentMethod" onchange="checkWalletBalance()" required>
+              <option value="bank">Ngân hàng</option>
+              <option value="wallet">Ví EmoBox</option>
+            </select>
+            <div id="walletWarning" style="color: #ef4444; font-size: 0.85rem; font-weight: 600; display: none; margin-top: 0.4rem;">
+              ⚠ Số dư ví không đủ để thanh toán. Vui lòng nạp thêm tiền hoặc đổi phương thức.
+            </div>
+          </div>
+
+          <div class="form-group" id="eventImageContainer" style="display: none; text-align: center; margin-top: 1rem;">
+            <img id="eventImage" src="" style="width: 100%; max-height: 250px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05); object-fit: contain; background: #f8fafc;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" id="eventPicksLabel">Quà đi kèm</label>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;" id="eventFixedLabel">🔒 Cố định: ...</p>
+            <div id="eventPicksContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 0.5rem;">
+              <!-- Checkboxes rendered here -->
+            </div>
+            <p id="eventPicksWarning" style="font-size: 0.8rem; color: #b45309; margin-top: 0.5rem; display: none;">Vui lòng chọn đủ món!</p>
+          </div>
+
+          <div class="form-group" style="background: #f8fafc; padding: 1rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+            <span style="font-weight: 600;">Tổng tiền gói quà:</span>
+            <span style="font-weight: 800; color: var(--primary); font-size: 1.2rem;" id="eventPriceDisplay">99.000 đ</span>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button type="button" class="btn-cancel" id="btnDeleteEvent" style="display: none; background: #fee2e2; color: #ef4444; border: none; padding: 0.75rem 1rem; border-radius: 999px; cursor: pointer; font-weight: 600;" onclick="deleteEvent()">Xóa sự kiện</button>
+          <button type="button" class="btn-cancel" onclick="closeEventModal()">Hủy</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEvent">Lưu sự kiện</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    /* EVENT DATA MANAGEMENT */
+    const DEFAULT_EVENTS = [
+      { id: '1', date: '2026-05-15', title: 'Sinh nhật Mẹ', recipient: 'Mẹ', emotion: 'Yêu thương', status: 'Đang chuẩn bị', pkgName: 'Gói Standard (Tết)', price: '399.000 đ' },
+      { id: '2', date: '2026-05-22', title: 'Kỷ niệm 2 năm yêu nhau', recipient: 'Linh Chi', emotion: 'Lãng mạn', status: 'Chưa đặt quà', pkgName: 'Gói Basic (Valentine)', price: '199.000 đ' },
+      { id: '3', date: '2026-06-01', title: 'Quốc tế thiếu nhi', recipient: 'Bé Bo', emotion: 'Vui vẻ', status: 'Chưa đặt quà', pkgName: 'Gói Mini (Cảm Xúc)', price: '99.000 đ' }
+    ];
+
+    /* ===== PACKAGE DATA BY CATEGORY ===== */
+    const PKG_DATA_BY_CAT = {
+      tet: {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Lịch để bàn (nhỏ)', 'Hộp mứt (nhỏ)'], options: ['Lì xì mini', 'Kẹo Tết', 'Bookmark lộc', 'Charm may mắn', 'Trà tài lộc'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 1, fixedItems: ['Hộp mứt (vừa)', 'Trà'], options: ['Lì xì set', 'Tất đỏ', 'Hoa khô mini', 'Lịch để bàn'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 3, fixedItems: ['Rượu vang', 'Mứt', 'Trà'], options: ['Trà Tết', 'Gấu bông mini', 'Tinh dầu', 'Bookmark', 'Pouch', 'Lịch để bàn'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Rượu vang', 'Mứt', 'Trà'], options: ['Gấu bông', 'Đèn ngủ', 'Bath items', 'Trà / Cà phê set', 'Chocolate premium', 'Lịch để bàn', 'Mứt'] }
+      },
+      valentine: {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp', 'Chocolate'], options: ['Sticker', 'Charm tim', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 1, fixedItems: ['Thiệp', 'Chocolate', 'Hoa'], options: ['Chocolate', 'Trà hoa', 'Tất dài', 'Bookmark', 'Móc khóa', 'Tinh dầu'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Chocolate', 'Hoa', 'Tinh dầu'], options: ['Gấu bông mini', 'Tinh dầu', 'Vòng tay', 'Ảnh in', 'Thiệp'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 3, fixedItems: ['Chocolate', 'Hoa', 'Tinh dầu', 'Nến thơm'], options: ['Gấu bông', 'Đèn ngủ', 'Sleep mask', 'Bath set', 'Phụ kiện đôi'] }
+      },
+      '8-3-20-10': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Cốc sứ', 'Gương cầm tay'], options: ['Hoa khô mini', 'Sticker', 'Kẹo', 'Bookmark', 'Scrunchies'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Cốc sứ', 'Gương cầm tay'], options: ['Hoa khô bé nhỏ', 'Trà túi lọc', 'Son dưỡng mini', 'Tất / Vớ', 'Bộ mặt nạ', 'Scrunchies'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 1, fixedItems: ['Bình giữ nhiệt', 'Gương cầm tay', 'Scrunchies'], options: ['Tinh dầu', 'Gấu mini', 'Pouch', 'Bookmark', 'Bộ mặt nạ', 'Scrunchies', 'Son dưỡng'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 2, fixedItems: ['Bình giữ nhiệt', 'Gương cầm tay', 'Tinh dầu'], options: ['Bath set', 'Sleep mask', 'Hoa khô', 'Phụ kiện', 'Chocolate', 'Scrunchies'] }
+      },
+      '20-11': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Sổ tay', 'Thiệp thiết kế viết tay'], options: ['Bút bi', 'Bút máy', 'Trà xanh', 'Trà hoa cúc', 'Trà lài'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Sổ tay', 'Thiệp viết tay', 'Bút cao cấp'], options: ['Lịch để bàn tự thiết kế', 'Bookmark', 'Tinh dầu thư giãn', 'Trà xanh', 'Trà hoa cúc', 'Trà lài'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Sổ tay', 'Thiệp viết tay', 'Bút cao cấp', 'Lịch để bàn'], options: ['Bookmark', 'Tinh dầu thư giãn', 'Trà ô long', 'Hồng trà', 'Trà phổ nhĩ'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 2, fixedItems: ['Sổ tay', 'Thiệp', 'Bút cao cấp', 'Lịch để bàn', 'Nến thơm'], options: ['Bookmark', 'Tinh dầu thư giãn', 'Trà ô long', 'Hồng trà', 'Trà phổ nhĩ'] }
+      },
+      noel: {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 2, fixedItems: ['Nến thơm mùi quế'], options: ['Bột Hot Chocolate', 'Kẹo gậy', 'Bánh quy gừng', 'Socola dạng thanh'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Nến thơm quế', 'Tất Noel'], options: ['Bột Hot Chocolate', 'Kẹo gậy', 'Bánh quy gừng', 'Socola dạng thanh'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Nến thơm gỗ thông', 'Tất Noel'], options: ['Bột Hot Chocolate', 'Kẹo gậy', 'Bánh quy gừng', 'Socola dạng thanh'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 2, fixedItems: ['Rượu vang mini', 'Nến thơm gỗ thông', 'Tất Noel', 'Chocolate nghệ thuật'], options: ['Bột Hot Chocolate', 'Kẹo gậy', 'Bánh quy gừng', 'Socola dạng thanh'] }
+      },
+      'trung-thu': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 2, fixedItems: ['Bánh trung thu (1 cái)'], options: ['Mật ong nhỏ', 'Trà xanh', 'Trà hoa cúc', 'Trà lài', 'Yến nhỏ (1 chai)'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Bánh trung thu (1 cái)'], options: ['Mật ong vừa', 'Trà xanh', 'Trà hoa cúc', 'Trà lài', 'Yến vừa (1 chai)'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Bánh trung thu (4 cái)'], options: ['Trà xanh', 'Trà hoa cúc', 'Trà lài', 'Mật ong', 'Yến nhỏ (2 chai)'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 2, fixedItems: ['Bánh trung thu (4 cái)'], options: ['Trà ô long', 'Hồng trà', 'Trà phổ nhĩ', 'Mật ong', 'Yến vừa (2 chai)'] }
+      },
+      'an-ui-dong-vien': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'], options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'], options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'], options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'], options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm'] }
+      },
+      'xin-loi-lam-hoa': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'], options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'], options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'], options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'], options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm'] }
+      },
+      'tiep-suc-truyen-dong-luc': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'], options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'], options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'], options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'], options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm'] }
+      },
+      'yeu-thuong-quan-tam': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'], options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'], options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'], options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'], options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm'] }
+      },
+      'chuc-mung-an-mung': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'], options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'], options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'], options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'], options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm'] }
+      },
+      'healing-self-care': {
+        mini:     { name: 'Gói Mini',         price: '99.000 đ',  priceNum: 99000,  picks: 1, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'], options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini'] },
+        basic:    { name: 'Gói Basic',        price: '199.000 đ', priceNum: 199000, picks: 2, fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'], options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic'] },
+        standard: { name: 'Gói Standard',     price: '399.000 đ', priceNum: 399000, picks: 2, fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'], options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm'] },
+        premium:  { name: 'Gói Premium Plus', price: '599.000 đ', priceNum: 599000, picks: 4, fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'], options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm'] }
+      }
+    };
+
+    function loadEvents() {
+      let events = JSON.parse(localStorage.getItem('emobox_events'));
+      if (!events) {
+        events = DEFAULT_EVENTS;
+        localStorage.setItem('emobox_events', JSON.stringify(events));
+      }
+      return events;
+    }
+
+    /* MAIN CALENDAR LOGIC */
+    let currDate = new Date();
+
+    function renderMainCalendar() {
+      const events = loadEvents();
+      
+      const year = currDate.getFullYear();
+      const month = currDate.getMonth();
+      document.getElementById('mainCalMonthYear').textContent = `Tháng ${String(month + 1).padStart(2, '0')} ${year}`;
+      
+      let firstDay = new Date(year, month, 1).getDay();
+      firstDay = firstDay === 0 ? 6 : firstDay - 1; // 0 is Monday
+      
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const calDays = document.getElementById('mainCalDays');
+      let html = '';
+      
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+      
+      // Empty cells
+      for (let i = 0; i < firstDay; i++) {
+        html += `<div class="cal-day-lg empty"></div>`;
+      }
+      
+      for (let i = 1; i <= daysInMonth; i++) {
+        const fullDateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        const dayEvents = events.filter(e => e.date === fullDateStr);
+        let eventsHtml = '';
+        
+        dayEvents.forEach(evt => {
+          // Compute status
+          if (evt.paid) {
+            const evtDate = new Date(evt.date);
+            evtDate.setHours(0,0,0,0);
+            const t = new Date();
+            t.setHours(0,0,0,0);
+            const diffDays = Math.ceil((evtDate - t) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays <= 4 && diffDays >= 0) {
+              evt.status = 'Đang chuẩn bị quà';
+            } else if (diffDays < 0) {
+              evt.status = 'Đã hoàn thành';
+            } else {
+              evt.status = 'Đã thanh toán';
+            }
+          } else {
+            evt.status = 'Chờ thanh toán';
+          }
+          
+          const statusColor = evt.status === 'Chờ thanh toán' || evt.status === 'Đang chuẩn bị quà' ? '#b45309' : '#047857';
+
+          eventsHtml += `
+            <div class="cal-event-pill" onclick="event.stopPropagation(); openEventModal('${fullDateStr}', '${evt.id}')">
+              <div class="cal-event-pill-title">${evt.recipient}</div>
+              <div class="cal-event-pill-sub">${evt.pkgName ? evt.pkgName : 'Sự kiện'}</div>
+              <div style="font-size: 0.7rem; color: ${statusColor}; font-weight: 600; margin-top: 0.2rem;">• ${evt.status}</div>
+            </div>
+          `;
+        });
+        
+        const isTodayClass = (isCurrentMonth && today.getDate() === i) ? 'today' : '';
+        
+        html += `
+          <div class="cal-day-lg" onclick="openEventModal('${fullDateStr}')">
+            <div class="cal-day-number ${isTodayClass}">${i}</div>
+            ${eventsHtml}
+          </div>
+        `;
+      }
+      
+      const totalCells = firstDay + daysInMonth;
+      const remainingCells = (7 - (totalCells % 7)) % 7;
+      for (let i = 0; i < remainingCells; i++) {
+        html += `<div class="cal-day-lg empty"></div>`;
+      }
+      
+      calDays.innerHTML = html;
+    }
+
+    function changeMainMonth(dir) {
+      currDate.setMonth(currDate.getMonth() + dir);
+      renderMainCalendar();
+    }
+
+    function selectDate(dateStr) {
+      closeCalendarModal();
+      openEventModal();
+      document.getElementById('eventDate').value = dateStr;
+    }
+
+    /* FORM MODAL LOGIC */
+    let eventCurrentPkg = null;
+    let eventSelectedPicks = [];
+
+    function handleEventPkgChange() {
+      const cat = document.getElementById('eventCat').value;
+      const tier = document.getElementById('eventTier').value;
+      
+      eventCurrentPkg = PKG_DATA_BY_CAT[cat][tier];
+      eventSelectedPicks = [];
+      
+      const pkg = eventCurrentPkg;
+      document.getElementById('eventPriceDisplay').textContent = pkg.price;
+      document.getElementById('eventFixedLabel').textContent = '🔒 Cố định: ' + pkg.fixedItems.join(', ');
+      
+      const PKG_IMAGES = {
+        'tet': {
+          'mini': '1. Mini Tết.png',
+          'basic': '2. Basic Tết.png',
+          'standard': '3. Standard Tết.png',
+          'premium': '4. Premium Tết.png'
+        },
+        'valentine': {
+          'mini': '1. Mini Valentine.png',
+          'basic': '2. Basic Valentine.png',
+          'standard': '3. Standard Valentine.png',
+          'premium': '4. Premium Valentine.png'
+        },
+        '8-3-20-10': {
+          'mini': '1. Mini 20-10 & 8-3.png',
+          'basic': '2. Basic 20-10 & 8-3.png',
+          'standard': '3. Standard 20-10 & 8-3.png',
+          'premium': '4. Premium 20-10 & 8-3.png'
+        },
+        '20-11': {
+          'mini': '1. Mini 20-11.png',
+          'basic': '2. Basic 20-11.png',
+          'standard': '3. Standard 20-11.png',
+          'premium': '4. Premium 20-11.png'
+        },
+        'noel': {
+          'mini': '1. Mini NOEL.png',
+          'basic': '2. Basic NOEL.png',
+          'standard': '3. Standard NOEL.png',
+          'premium': '4. Premium NOEL.png'
+        },
+        'trung-thu': {
+          'mini': '1. MINI TRUNG THU.png',
+          'basic': '2. BASIC TRUNG THU.png',
+          'standard': '3. STANDARD TRUNG THU.png',
+          'premium': '4. PREMIUM TRUNG THU.png'
+        },
+        'an-ui-dong-vien': { 'mini': '1. Mini Support.png', 'basic': '2. Basic Support.png', 'standard': '3. Standard Support.png', 'premium': '4. Premium Support.png' },
+        'xin-loi-lam-hoa': { 'mini': '1. Mini Sorry.png', 'basic': '2. Basic Sorry.png', 'standard': '3. Standard Sorry.png', 'premium': '4. Premium Sorry.png' },
+        'tiep-suc-truyen-dong-luc': { 'mini': '1. Mini Motivation.png', 'basic': '2. Basic Motivation.png', 'standard': '3. Standard Motivation.png', 'premium': '4. Premium Motivation.png' },
+        'yeu-thuong-quan-tam': { 'mini': '1. Mini Love.png', 'basic': '2. Basic Love.png', 'standard': '3. Standard Love.png', 'premium': '4. Premium Love.png' },
+        'chuc-mung-an-mung': { 'mini': '1. Mini Celebration.png', 'basic': '2. Basic Celebration.png', 'standard': '3. Standard Celebration.png', 'premium': '4. Premium Celebration.png' },
+        'healing-self-care': { 'mini': '1. Mini Healing.png', 'basic': '2. Basic Healing.png', 'standard': '3. Standard Healing.png', 'premium': '4. Premium Healing.png' }
+      };
+
+      const imgContainer = document.getElementById('eventImageContainer');
+      const imgEl = document.getElementById('eventImage');
+      if (PKG_IMAGES[cat] && PKG_IMAGES[cat][tier]) {
+        imgEl.src = PKG_IMAGES[cat][tier];
+        imgContainer.style.display = 'block';
+      } else {
+        imgContainer.style.display = 'none';
+      }
+      
+      const picksContainer = document.getElementById('eventPicksContainer');
+      picksContainer.innerHTML = pkg.options.map((opt, idx) => `
+        <label class="pick-option" id="evt-opt-${idx}" onclick="toggleEventPick('${opt.replace(/'/g, "\\'")}', ${idx})">
+          <div class="pick-checkbox" id="evt-chk-${idx}"></div>
+          <span class="pick-label">${opt}</span>
+        </label>
+      `).join('');
+      
+      updateEventProgress();
+      checkWalletBalance();
+    }
+
+    function checkWalletBalance() {
+      const paymentMethod = document.getElementById('eventPaymentMethod').value;
+      const warning = document.getElementById('walletWarning');
+      
+      if (paymentMethod === 'wallet') {
+        const user = JSON.parse(localStorage.getItem('emobox_user'));
+        const balance = (user && user.balance) ? user.balance : 0;
+        
+        if (eventCurrentPkg && balance < eventCurrentPkg.priceNum) {
+          warning.style.display = 'block';
+        } else {
+          warning.style.display = 'none';
+        }
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+
+    function toggleEventPick(optName, idx) {
+      const idxInArr = eventSelectedPicks.indexOf(optName);
+      if (idxInArr > -1) {
+        eventSelectedPicks.splice(idxInArr, 1);
+        document.getElementById('evt-opt-' + idx).classList.remove('selected');
+        document.getElementById('evt-chk-' + idx).textContent = '';
+      } else {
+        if (eventSelectedPicks.length >= eventCurrentPkg.picks) {
+          showToast('Bạn đã chọn đủ số lượng món tự chọn!');
+          return;
+        }
+        eventSelectedPicks.push(optName);
+        document.getElementById('evt-opt-' + idx).classList.add('selected');
+        document.getElementById('evt-chk-' + idx).textContent = '✓';
+      }
+      
+      const allLabels = document.querySelectorAll('#eventPicksContainer .pick-option');
+      if (eventSelectedPicks.length >= eventCurrentPkg.picks) {
+        allLabels.forEach(lbl => {
+          if (!lbl.classList.contains('selected')) lbl.classList.add('disabled');
+        });
+      } else {
+        allLabels.forEach(lbl => lbl.classList.remove('disabled'));
+      }
+      
+      updateEventProgress();
+    }
+
+    function updateEventProgress() {
+      if (!eventCurrentPkg) return;
+      const count = eventSelectedPicks.length;
+      const max = eventCurrentPkg.picks;
+      const lbl = document.getElementById('eventPicksLabel');
+      lbl.textContent = `Quà đi kèm (Đã chọn ${count}/${max})`;
+      
+      const warning = document.getElementById('eventPicksWarning');
+      lbl.style.color = 'var(--text-main)';
+      if (warning) warning.style.display = 'none';
+    }
+
+    function handleEventGroupChange() {
+      const group = document.getElementById('eventGroup').value;
+      const catSelect = document.getElementById('eventCat');
+      
+      const occasionOptions = `
+        <option value="tet">Tết</option>
+        <option value="valentine">Valentine</option>
+        <option value="8-3-20-10">8/3 & 20/10</option>
+        <option value="20-11">20/11 (Nhà Giáo)</option>
+        <option value="trung-thu">Trung Thu</option>
+        <option value="noel">Giáng Sinh (Noel)</option>
+      `;
+      
+      const emotionOptions = `
+        <option value="an-ui-dong-vien">An ủi và động viên</option>
+        <option value="xin-loi-lam-hoa">Xin lỗi và làm hòa</option>
+        <option value="tiep-suc-truyen-dong-luc">Tiếp sức & Truyền động lực</option>
+        <option value="yeu-thuong-quan-tam">Yêu thương và quan tâm</option>
+        <option value="chuc-mung-an-mung">Chúc mừng và ăn mừng</option>
+        <option value="healing-self-care">Healing & Self-care</option>
+      `;
+      
+      if (group === 'occasion') {
+        catSelect.innerHTML = occasionOptions;
+      } else {
+        catSelect.innerHTML = emotionOptions;
+      }
+      
+      handleEventPkgChange();
+    }
+
+    let currentEditingEventId = null;
+
+    function openEventModal(dateStr, eventId) {
+      const currentUser = JSON.parse(localStorage.getItem('emobox_user'));
+      if (!currentUser || currentUser.plan === 'none' || !currentUser.plan) {
+        showToast('Chức năng dành cho người đăng ký thành viên');
+        return;
+      }
+      
+      document.getElementById('eventModalOverlay').classList.add('active');
+      currentEditingEventId = eventId || null;
+      
+      if (currentEditingEventId) {
+        document.querySelector('#eventModal .modal-title').textContent = 'Sửa lịch tặng quà';
+        document.getElementById('btnSaveEvent').textContent = 'Cập nhật sự kiện';
+        document.getElementById('btnDeleteEvent').style.display = 'block';
+        
+        const events = loadEvents();
+        const evt = events.find(e => e.id === currentEditingEventId);
+        if (evt) {
+          document.getElementById('eventDate').value = evt.date;
+          document.getElementById('eventRecipient').value = evt.recipient || '';
+          document.getElementById('eventAddress').value = evt.address || '';
+          document.getElementById('eventPhone').value = evt.phone || '';
+          document.getElementById('eventEmail').value = evt.email || '';
+          
+          if (evt.group && evt.cat && evt.tier) {
+            document.getElementById('eventGroup').value = evt.group;
+            handleEventGroupChange();
+            document.getElementById('eventCat').value = evt.cat;
+            handleEventPkgChange();
+            document.getElementById('eventTier').value = evt.tier;
+            handleEventPkgChange();
+          } else {
+            document.getElementById('eventGroup').value = 'occasion';
+            handleEventGroupChange();
+          }
+        }
+      } else {
+        document.querySelector('#eventModal .modal-title').textContent = 'Thêm sự kiện mới';
+        document.getElementById('btnSaveEvent').textContent = 'Lưu sự kiện';
+        document.getElementById('btnDeleteEvent').style.display = 'none';
+        
+        document.getElementById('eventRecipient').value = '';
+        document.getElementById('eventAddress').value = '';
+        document.getElementById('eventPhone').value = '';
+        document.getElementById('eventEmail').value = '';
+        
+        document.getElementById('eventGroup').value = 'occasion';
+        handleEventGroupChange();
+        
+        if (dateStr && typeof dateStr === 'string') {
+          document.getElementById('eventDate').value = dateStr;
+        } else {
+          document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+        }
+      }
+    }
+    
+    async function deleteEvent() {
+      if (!currentEditingEventId) return;
+      if (!confirm('Bạn có chắc muốn xóa sự kiện này?')) return;
+      
+      let events = loadEvents();
+      events = events.filter(e => e.id !== currentEditingEventId);
+      localStorage.setItem('emobox_events', JSON.stringify(events));
+      
+      // Remove from cart if it exists
+      let cartData = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
+      cartData = cartData.filter(item => item.id !== currentEditingEventId);
+      localStorage.setItem('emobox_cart', JSON.stringify(cartData));
+      if(typeof updateCartBadge === 'function') updateCartBadge();
+      await EmoBoxApi.deleteGiftSchedule(currentEditingEventId, JSON.parse(localStorage.getItem('emobox_user')));
+      
+      showToast('Đã xóa sự kiện thành công!');
+      closeEventModal();
+      renderMainCalendar();
+    }
+
+    function closeEventModal() {
+      document.getElementById('eventModalOverlay').classList.remove('active');
+    }
+
+    function handleEventModalClick(e) {
+      if (e.target.id === 'eventModalOverlay') closeEventModal();
+    }
+
+    async function addEvent(e) {
+      e.preventDefault();
+      
+      const date = document.getElementById('eventDate').value;
+      
+      const currentUser = JSON.parse(localStorage.getItem('emobox_user'));
+      if (currentUser && currentUser.plan && currentUser.plan !== 'none') {
+        const regDateStr = currentUser.registeredAt || new Date().toISOString();
+        const regDate = new Date(regDateStr);
+        const evtDate = new Date(date);
+        const maxDate = new Date(regDate);
+        
+        let monthsToAdd = 0;
+        if (currentUser.plan === '3-months') monthsToAdd = 3;
+        if (currentUser.plan === '6-months') monthsToAdd = 6;
+        if (currentUser.plan === '12-months') monthsToAdd = 12;
+        
+        if (monthsToAdd > 0) {
+           maxDate.setMonth(maxDate.getMonth() + monthsToAdd);
+           if (evtDate > maxDate) {
+              showToast('Yêu cầu nâng cấp gói thành viên để đặt lịch xa hơn');
+              return;
+           }
+        }
+      }
+
+      const recipient = document.getElementById('eventRecipient').value.trim();
+      const address = document.getElementById('eventAddress').value.trim();
+      const phone = document.getElementById('eventPhone').value.trim();
+      const email = document.getElementById('eventEmail').value.trim();
+      const paymentMethod = document.getElementById('eventPaymentMethod').value;
+      
+      if (!recipient || !address || !phone || !email) {
+        showToast('Vui lòng điền đầy đủ thông tin!');
+        return;
+      }
+      
+      if (!/^(0|84)[0-9]{8,9}$/.test(phone)) {
+        showToast('Số điện thoại không hợp lệ!');
+        return;
+      }
+
+      const catValue = document.getElementById('eventCat').value;
+      const tierValue = document.getElementById('eventTier').value;
+      const pkg = PKG_DATA_BY_CAT[catValue][tierValue];
+      
+      if (eventSelectedPicks.length < pkg.picks) {
+        document.getElementById('eventPicksWarning').style.display = 'block';
+        document.getElementById('eventPicksLabel').style.color = '#ef4444';
+        return;
+      }
+
+      const groupValue = document.getElementById('eventGroup').value;
+
+      const newEvent = {
+        id: currentEditingEventId ? currentEditingEventId : 'evt_' + Date.now(),
+        date: date,
+        title: 'Quà cho ' + recipient,
+        recipient: recipient,
+        address: address,
+        phone: phone,
+        email: email,
+        paid: false,
+        group: groupValue,
+        cat: catValue,
+        tier: tierValue,
+        pkgName: pkg.name + ' (' + catValue.charAt(0).toUpperCase() + catValue.slice(1) + ')',
+        price: pkg.price,
+        priceNum: pkg.priceNum,
+        fixedItems: [...pkg.fixedItems],
+        selectedPicks: [...eventSelectedPicks],
+        image: document.getElementById('eventImage').src
+      };
+
+      if (paymentMethod === 'wallet') {
+        if (currentUser.balance < pkg.priceNum) {
+          showToast('Số dư ví không đủ!');
+          return;
+        }
+        currentUser.balance -= pkg.priceNum;
+        localStorage.setItem('emobox_user', JSON.stringify(currentUser));
+        newEvent.paid = true;
+      } else {
+        // Redirect to cart or add to cart
+        // Check if already in cart
+        const cartIndex = cart.findIndex(item => item.id === newEvent.id);
+        const cartItem = {
+          id: newEvent.id,
+          isPkg: true,
+          name: newEvent.pkgName,
+          image: newEvent.image,
+          pkgPrice: newEvent.price,
+          priceNum: newEvent.priceNum,
+          fixedItems: newEvent.fixedItems,
+          selectedPicks: newEvent.selectedPicks,
+          quantity: 1,
+          recipient: newEvent.recipient,
+          address: newEvent.address,
+          phone: newEvent.phone
+        };
+        
+        if (cartIndex > -1) {
+          cart[cartIndex] = cartItem;
+        } else {
+          cart.push(cartItem);
+        }
+        
+        localStorage.setItem('emobox_cart', JSON.stringify(cart));
+        updateCartBadge();
+      }
+
+      let events = loadEvents();
+      if (currentEditingEventId) {
+        const idx = events.findIndex(e => e.id === currentEditingEventId);
+        if (idx > -1) events[idx] = newEvent;
+      } else {
+        events.push(newEvent);
+      }
+      localStorage.setItem('emobox_events', JSON.stringify(events));
+      await EmoBoxApi.saveGiftSchedule(newEvent, currentUser, paymentMethod);
+      
+      closeEventModal();
+      renderMainCalendar();
+
+      if (paymentMethod === 'bank') {
+        const cartItemToCheckout = {
+          id: newEvent.id,
+          isPkg: true,
+          name: newEvent.pkgName,
+          image: newEvent.image,
+          pkgPrice: newEvent.price,
+          priceNum: newEvent.priceNum,
+          fixedItems: newEvent.fixedItems,
+          selectedPicks: newEvent.selectedPicks,
+          quantity: 1,
+          recipient: newEvent.recipient,
+          address: newEvent.address,
+          phone: newEvent.phone
+        };
+        localStorage.setItem('emobox_checkout_items', JSON.stringify([cartItemToCheckout]));
+        window.location.href = 'checkout.html';
+      } else {
+        showToast(currentEditingEventId ? '📅 Đã cập nhật lịch tặng quà!' : '📅 Đã lưu lịch tặng quà thành công!');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMainCalendar();
+    });
+  </script>
+</body>
+</html>

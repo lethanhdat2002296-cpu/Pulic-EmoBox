@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh Toán Gói Thành Viên - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f8fafc; }
+    .payment-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .payment-card { background: white; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.08); width: 100%; max-width: 500px; padding: 2.5rem; }
+    
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header h2 { font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; }
+    
+    .plan-summary { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; text-align: center; }
+    .plan-name { font-size: 1.25rem; font-weight: 700; color: #0369a1; margin-bottom: 0.5rem; }
+    .plan-price { font-size: 2rem; font-weight: 800; color: #0f172a; }
+    
+    .payment-methods { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem; }
+    .payment-opt { border: 1px solid var(--border); border-radius: 12px; padding: 1rem; display: flex; align-items: flex-start; gap: 0.75rem; cursor: pointer; transition: 0.2s; background: white; }
+    .payment-opt.active { border-color: #0ea5e9; border-width: 2px; }
+    .payment-opt input[type="radio"] { margin-top: 0.2rem; cursor: pointer; }
+    .payment-opt-content { flex: 1; }
+    .payment-opt-label { font-weight: 600; font-size: 0.95rem; color: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+    
+    .card-form { margin-top: 1rem; display: none; padding-top: 1rem; border-top: 1px dashed var(--border); }
+    .payment-opt.active .card-form { display: block; }
+    .form-input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 0.85rem; margin-bottom: 0.75rem; }
+    
+    .actions { display: flex; flex-direction: column; gap: 1rem; }
+    .btn-submit { width: 100%; height: 50px; font-size: 1rem; border-radius: 12px; font-weight: 600; }
+    .btn-skip { background: transparent; color: var(--text-muted); border: none; font-weight: 600; cursor: pointer; padding: 0.5rem; transition: 0.2s; }
+    .btn-skip:hover { color: #0f172a; }
+  </style>
+</head>
+<body>
+  <div class="payment-container">
+    <div class="payment-card">
+      <div class="header">
+        <a href="index.html" style="text-decoration: none; display: inline-block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </a>
+        <h2>Kích hoạt gói thành viên</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Thanh toán để tận hưởng các đặc quyền từ EmoBox</p>
+      </div>
+
+      <div class="plan-summary">
+        <div class="plan-name" id="displayPlanName">Đang tải...</div>
+        <div class="plan-price" id="displayPlanPrice">0 đ</div>
+        <div id="balanceCalculation" style="margin-top: 1rem; font-size: 0.9rem; color: #334155; background: white; padding: 0.75rem; border-radius: 8px; border: 1px dashed #bae6fd; text-align: left;">
+          <!-- Content injected via JS -->
+        </div>
+      </div>
+
+      <div class="payment-methods">
+        <label class="payment-opt active" onclick="selectPayment(this)">
+          <input type="radio" name="payment" value="card" checked>
+          <div class="payment-opt-content">
+            <div class="payment-opt-label">
+              Thẻ Ngân Hàng (Visa, Mastercard...)
+              <span>💳</span>
+            </div>
+            <div class="card-form">
+              <input type="text" id="bankCardNum" class="form-input" placeholder="Số thẻ (0000 0000 0000 0000)">
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="bankCardExp" class="form-input" placeholder="MM/YY" style="flex: 1;">
+                <input type="text" id="bankCardCvc" class="form-input" placeholder="CVC" style="width: 80px;">
+              </div>
+              <input type="text" id="bankCardName" class="form-input" placeholder="Tên in trên thẻ" style="margin-bottom: 0;">
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary btn-submit" onclick="confirmPayment()">Xác nhận thanh toán</button>
+        <button class="btn-skip" onclick="skipPayment()">Bỏ qua, tôi muốn làm thành viên thường</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const planDetails = {
+      '3-months': { name: 'Gói 3 Tháng', price: 299000 },
+      '6-months': { name: 'Gói 6 Tháng', price: 499000 },
+      '12-months': { name: 'Gói 12 Tháng', price: 799000 }
+    };
+    
+    let user = JSON.parse(localStorage.getItem('emobox_user'));
+    let pending = user ? user.pendingPlan : null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!user || !pending || pending === 'none' || !planDetails[pending]) {
+        // Fallback if accessed incorrectly
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      const plan = planDetails[pending];
+      document.getElementById('displayPlanName').textContent = plan.name;
+      document.getElementById('displayPlanPrice').textContent = formatPrice(plan.price);
+      
+      const currentBalance = user.balance || 0;
+      const newBalance = currentBalance + plan.price;
+      
+      document.getElementById('balanceCalculation').innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+          <span>Số dư Ví hiện tại:</span>
+          <strong>${formatPrice(currentBalance)}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; color: #059669;">
+          <span>+ Cấp thêm từ gói mới:</span>
+          <strong>${formatPrice(plan.price)}</strong>
+        </div>
+        <hr style="border: none; border-top: 1px solid var(--border); margin: 0.5rem 0;">
+        <div style="display: flex; justify-content: space-between; font-weight: 700; color: #0284c7;">
+          <span>= Tổng số dư sau thanh toán:</span>
+          <span>${formatPrice(newBalance)}</span>
+        </div>
+      `;
+    });
+
+    function selectPayment(labelEl) {
+      document.querySelectorAll('.payment-opt').forEach(opt => opt.classList.remove('active'));
+      labelEl.classList.add('active');
+    }
+
+    async function confirmPayment() {
+      if (!user || !pending || !planDetails[pending]) return;
+      
+      const cardNum = document.getElementById('bankCardNum').value.trim();
+      const cardExp = document.getElementById('bankCardExp').value.trim();
+      const cardCvc = document.getElementById('bankCardCvc').value.trim();
+      const cardName = document.getElementById('bankCardName').value.trim();
+      
+      if (!cardNum || !cardExp || !cardCvc || !cardName) {
+        showToast('Vui lòng nhập đầy đủ thông tin thẻ ngân hàng!');
+        return;
+      }
+      
+      const plan = planDetails[pending];
+      
+      // Update user details
+      user.plan = pending;
+      user.balance = (user.balance || 0) + plan.price;
+      delete user.pendingPlan; // Clear pending plan
+      
+      localStorage.setItem('emobox_user', JSON.stringify(user));
+      await EmoBoxApi.activateSubscription(user, pending, plan, 'card');
+      
+      showToast('🎉 Kích hoạt gói thành công! Bạn có thể sử dụng Ví và Đặt lịch.');
+      
+      setTimeout(() => {
+        window.location.href = 'wallet.html';
+      }, 2000);
+    }
+
+    function skipPayment() {
+      if (user) {
+        // Chỉ xóa lệnh nâng cấp tạm thời (pendingPlan), giữ nguyên gói cũ (user.plan)
+        delete user.pendingPlan;
+        localStorage.setItem('emobox_user', JSON.stringify(user));
+      }
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

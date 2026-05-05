@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ví EmoBox - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .wallet-container { padding-top: 4rem; padding-bottom: 6rem; }
+    .wallet-card { background: linear-gradient(135deg, var(--primary), #0369a1); border-radius: 32px; padding: 3rem; color: white; margin-bottom: 3rem; position: relative; overflow: hidden; box-shadow: 0 20px 40px -10px rgba(2,132,199,0.3); }
+    .wallet-card::before { content: ''; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: rgba(255,255,255,0.1); border-radius: 50%; }
+    
+    .balance-label { font-size: 1rem; opacity: 0.9; margin-bottom: 0.5rem; display: block; font-weight: 500; }
+    .balance-value { font-size: 3.5rem; font-weight: 800; font-family: var(--font-serif); }
+    
+    .wallet-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 3rem; }
+    @media (max-width: 600px) { .wallet-actions { grid-template-columns: 1fr; } }
+    .wallet-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); padding: 1.25rem; border-radius: 16px; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+    .wallet-btn:hover { background: rgba(255,255,255,0.3); }
+    
+    .history-card { background: white; border-radius: 24px; border: 1px solid var(--border); padding: 2rem; }
+    .history-title { font-weight: 700; margin-bottom: 2rem; font-size: 1.25rem; display: flex; align-items: center; justify-content: space-between; }
+    .transaction { display: flex; align-items: center; gap: 1.25rem; padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
+    .transaction:last-child { border-bottom: none; }
+    .tx-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+    .icon-in { background: #ecfdf5; color: #059669; }
+    .icon-out { background: #fef2f2; color: #dc2626; }
+    
+    .tx-info { flex: 1; }
+    .tx-info h5 { margin-bottom: 0.25rem; font-size: 1rem; }
+    .tx-info p { font-size: 0.82rem; color: var(--text-muted); }
+    .tx-amount { font-weight: 700; font-size: 1.1rem; }
+    .tx-amount.in { color: #059669; }
+    .tx-amount.out { color: var(--text-main); }
+
+    /* Deposit Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 900; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.25s; }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+    .modal-content { background: white; padding: 2.5rem; border-radius: 32px; width: 90%; max-width: 450px; transform: translateY(20px); transition: 0.25s; }
+    .modal-overlay.active .modal-content { transform: translateY(0); }
+    
+    .deposit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+    .deposit-opt { border: 2px solid var(--border); padding: 1rem; border-radius: 16px; text-align: center; cursor: pointer; transition: 0.2s; font-weight: 700; }
+    .deposit-opt:hover { border-color: var(--primary); background: #f0f9ff; }
+    .deposit-opt.active { border-color: var(--primary); background: #e0f2fe; color: var(--primary); }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing & Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item active">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container wallet-container">
+    <div class="wallet-card">
+      <span class="balance-label">Số dư hiện tại</span>
+      <div class="balance-value" id="balanceDisplay">2.450.000 đ</div>
+      
+      <div class="wallet-actions">
+        <button class="wallet-btn" onclick="openDepositModal()"><span>➕</span> Nạp Tiền</button>
+        <button class="wallet-btn"><span>📱</span> Rút Tiền</button>
+      </div>
+    </div>
+
+    <div class="history-card">
+      <div class="history-title">
+        Lịch sử giao dịch
+        <button class="btn btn-ghost" style="font-size: 0.875rem;">Tải báo cáo</button>
+      </div>
+      
+      <div id="transactionList">
+        <div class="transaction">
+          <div class="tx-icon icon-in">↓</div>
+          <div class="tx-info">
+            <h5>Nạp tiền từ ngân hàng</h5>
+            <p>12/04/2026 • 10:24</p>
+          </div>
+          <div class="tx-amount in">+ 1.000.000 đ</div>
+        </div>
+        <div class="transaction">
+          <div class="tx-icon icon-out">↑</div>
+          <div class="tx-info">
+            <h5>Thanh toán Gói Standard (Tết)</h5>
+            <p>10/04/2026 • 15:45</p>
+          </div>
+          <div class="tx-amount out">- 399.000 đ</div>
+        </div>
+        <div class="transaction">
+          <div class="tx-icon icon-out">↑</div>
+          <div class="tx-info">
+            <h5>Thanh toán Gói Basic (Valentine)</h5>
+            <p>08/04/2026 • 09:12</p>
+          </div>
+          <div class="tx-amount out">- 199.000 đ</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- DEPOSIT MODAL -->
+  <div class="modal-overlay" id="depositModal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 0.5rem; font-weight: 800;">Nạp tiền vào ví</h3>
+      <p style="color: var(--text-muted); font-size: 0.875rem;">Chọn số tiền bạn muốn nạp</p>
+      
+      <div class="deposit-grid">
+        <div class="deposit-opt" onclick="selectDeposit(200000, this)">200k</div>
+        <div class="deposit-opt active" onclick="selectDeposit(500000, this)">500k</div>
+        <div class="deposit-opt" onclick="selectDeposit(1000000, this)">1M</div>
+      </div>
+      
+      <div style="margin-bottom: 2rem;">
+        <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">Hoặc nhập số khác</label>
+        <input type="number" id="customDeposit" class="btn" style="width: 100%; border: 1px solid var(--border); text-align: left; padding-left: 1rem; color: var(--text-main);" placeholder="Số tiền (VNĐ)">
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <button class="btn btn-ghost" onclick="closeDepositModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="confirmDeposit()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let currentDepositAmount = 500000;
+
+    function initWallet() {
+      const user = JSON.parse(localStorage.getItem('emobox_user'));
+      if (user) {
+        document.getElementById('balanceDisplay').textContent = formatPrice(user.balance || 2450000);
+      }
+    }
+
+    function openDepositModal() {
+      document.getElementById('depositModal').classList.add('active');
+    }
+
+    function closeDepositModal() {
+      document.getElementById('depositModal').classList.remove('active');
+    }
+
+    function selectDeposit(amt, el) {
+      currentDepositAmount = amt;
+      document.querySelectorAll('.deposit-opt').forEach(opt => opt.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('customDeposit').value = '';
+    }
+
+    async function confirmDeposit() {
+      const custom = document.getElementById('customDeposit').value;
+      const finalAmt = custom ? parseInt(custom) : currentDepositAmount;
+      
+      const user = JSON.parse(localStorage.getItem('emobox_user'));
+      user.balance = (user.balance || 0) + finalAmt;
+      localStorage.setItem('emobox_user', JSON.stringify(user));
+      await EmoBoxApi.recordWalletDeposit(user, finalAmt);
+      
+      initWallet();
+      closeDepositModal();
+      showToast(`🎉 Đã nạp thành công ${formatPrice(finalAmt)} vào ví!`);
+    }
+
+    document.addEventListener('DOMContentLoaded', initWallet);
+  </script>
+</body>
+</html>

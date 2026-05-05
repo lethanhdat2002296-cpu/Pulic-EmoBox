@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liên Hệ – EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .contact-container { padding-top: 5rem; padding-bottom: 8rem; }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 5rem; align-items: start; }
+    
+    .contact-info h2 { font-family: var(--font-serif); font-size: 2.5rem; margin-bottom: 1.5rem; }
+    .contact-method { display: flex; gap: 1.5rem; margin-bottom: 2.5rem; }
+    .method-icon { width: 50px; height: 50px; background: #e0f2fe; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+    
+    .contact-form { background: white; padding: 3rem; border-radius: 32px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .form-group { margin-bottom: 1.5rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+    .form-input { width: 100%; padding: 1rem; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+    .form-input:focus { border-color: var(--primary); }
+    textarea.form-input { height: 150px; resize: vertical; }
+
+    @media (max-width: 992px) {
+      .contact-grid { grid-template-columns: 1fr; gap: 4rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing &amp; Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link active">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container contact-container">
+    <div class="contact-grid">
+      <!-- Left Info -->
+      <div class="contact-info">
+        <h2>Liên hệ với EmoBox</h2>
+        <p style="color: var(--text-muted); margin-bottom: 3rem; font-size: 1.1rem;">Chúng tôi luôn ở đây để lắng nghe những tâm tư và hỗ trợ bạn gửi trao cảm xúc trọn vẹn nhất.</p>
+        
+        <div class="contact-method">
+          <div class="method-icon">📍</div>
+          <div>
+            <h4 style="font-weight: 700;">Địa chỉ văn phòng</h4>
+            <p style="color: var(--text-muted);">279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</p>
+          </div>
+        </div>
+
+        <div class="contact-method">
+          <div class="method-icon">📧</div>
+          <div>
+            <h4 style="font-weight: 700;">Email hỗ trợ</h4>
+            <p style="color: var(--text-muted);">info.emobox@gmail.com</p>
+          </div>
+        </div>
+
+        <div class="contact-method">
+          <div class="method-icon">📞</div>
+          <div>
+            <h4 style="font-weight: 700;">Hotline</h4>
+            <p style="color: var(--text-muted);">0917 297 709</p>
+          </div>
+        </div>
+
+        <div class="contact-method">
+          <div class="method-icon">💬</div>
+          <div>
+            <h4 style="font-weight: 700;">Fanpage</h4>
+            <p style="color: var(--text-muted);">
+              <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 600;">EmoBox trên Facebook</a>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Form -->
+      <form class="contact-form" onsubmit="event.preventDefault(); showToast('Tin nhắn đã được gửi! Chúng tôi sẽ phản hồi sớm.');">
+        <div class="form-group">
+          <label>Họ và tên</label>
+          <input type="text" class="form-input" placeholder="Nguyễn Văn A" required>
+        </div>
+        <div class="form-group">
+          <label>Địa chỉ Email</label>
+          <input type="email" class="form-input" placeholder="example@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Chủ đề</label>
+          <select class="form-input" style="padding: 0.75rem 1rem;">
+            <option>Tư vấn chọn quà</option>
+            <option>Hỗ trợ đơn hàng</option>
+            <option>Hợp tác kinh doanh</option>
+            <option>Góp ý dịch vụ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Lời nhắn</label>
+          <textarea class="form-input" placeholder="Bạn cần chúng tôi hỗ trợ điều gì?" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; height: 56px; font-size: 1.1rem; margin-top: 1rem;">Gửi lời nhắn ngay</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển &amp; Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

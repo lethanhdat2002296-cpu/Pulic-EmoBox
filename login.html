@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng Nhập - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc; padding: 2rem; }
+    .auth-card { background: white; border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.08); width: 100%; max-width: 480px; padding: 3rem; }
+    .auth-header { text-align: center; margin-bottom: 2.5rem; }
+    .auth-logo { font-size: 2rem; margin-bottom: 1rem; display: block; }
+    
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
+    .form-input { width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: border-color 0.2s; }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+    
+    .auth-footer { text-align: center; margin-top: 2rem; font-size: 0.875rem; color: var(--text-muted); }
+    .auth-footer a { color: var(--primary); font-weight: 700; text-decoration: none; }
+    
+    .social-auth { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+    @media (max-width: 600px) { .social-auth { grid-template-columns: 1fr; } }
+    .social-btn { border: 1px solid var(--border); padding: 0.75rem; border-radius: 12px; background: white; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 600; font-size: 0.875rem; }
+    .social-btn:hover { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a href="index.html" class="auth-logo" style="text-decoration: none; display: flex; justify-content: center;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 40px; object-fit: contain;">
+        </a>
+        <h2 style="font-weight: 800; margin-bottom: 0.5rem;">Mừng bạn trở lại</h2>
+        <p style="color: var(--text-muted);">Gói trọn cảm xúc, gửi trao yêu thương</p>
+      </div>
+
+      <div style="margin-top: 1rem;"></div>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Địa chỉ Email</label>
+          <input type="email" class="form-input" id="loginEmail" placeholder="name@company.com" required>
+        </div>
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <label class="form-label" style="margin-bottom: 0;">Mật khẩu</label>
+            <a href="#" style="font-size: 0.75rem; color: var(--primary); font-weight: 600; text-decoration: none;">Quên mật khẩu?</a>
+          </div>
+          <input type="password" class="form-input" id="loginPass" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; height: 50px; font-size: 1rem; margin-top: 1rem;">Đăng nhập</button>
+      </form>
+
+      <div class="auth-footer">
+        Bạn chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      
+      // Lấy tài khoản từ localStorage nếu có
+      let user = JSON.parse(localStorage.getItem('emobox_user'));
+      
+      // Nếu không có tài khoản hoặc email không khớp, tạo mock user
+      if (!user || user.email !== email) {
+        user = {
+          name: 'Khách Hàng',
+          email: email,
+          phone: '',
+          address: '',
+          balance: 0,
+          plan: 'none',
+          pendingPlan: null,
+          registeredAt: new Date().toISOString()
+        };
+      }
+      
+      localStorage.setItem('emobox_user', JSON.stringify(user));
+      await EmoBoxApi.upsertUser(user, { password: document.getElementById('loginPass').value });
+      showToast('🎉 Đăng nhập thành công! Chào mừng bạn quay lại.');
+      
+      setTimeout(() => {
+        if (user.pendingPlan && user.pendingPlan !== 'none') {
+          window.location.href = 'plan-payment.html';
+        } else {
+          window.location.href = 'index.html';
+        }
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

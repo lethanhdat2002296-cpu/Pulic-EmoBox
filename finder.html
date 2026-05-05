@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khám Phá Quà Tặng - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .finder-container { padding-top: 4rem; padding-bottom: 6rem; min-height: 80vh; }
+    .finder-layout { max-width: 800px; margin: 0 auto; }
+    
+    .finder-step { display: none; }
+    .finder-step.active { display: block; animation: fadeIn 0.5s ease; }
+    
+    .finder-title { font-family: var(--font-serif); font-size: 2.5rem; text-align: center; margin-bottom: 3rem; }
+    .options-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+    @media (max-width: 600px) { .options-grid { grid-template-columns: 1fr; } }
+    
+    .option-card { background: white; border: 2px solid var(--border); border-radius: 24px; padding: 2rem; cursor: pointer; transition: all 0.3s; text-align: center; }
+    .option-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: var(--shadow); }
+    .option-card.selected { border-color: var(--primary); background: #f0f9ff; }
+    
+    .option-icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+    .option-label { font-weight: 700; font-size: 1.1rem; color: var(--text-main); }
+
+    .finder-footer { margin-top: 4rem; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Result Styling */
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 2rem; margin-top: 3rem; }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing & Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container finder-container">
+    <div class="finder-layout">
+      <!-- Step 1 -->
+      <section id="step1" class="finder-step active">
+        <h1 class="finder-title">Bạn tặng quà cho ai?</h1>
+        <div class="options-grid">
+          <div class="option-card" onclick="nextStep(2)">
+            <span class="option-icon">❤️</span>
+            <span class="option-label">Người yêu / Vợ chồng</span>
+          </div>
+          <div class="option-card" onclick="nextStep(2)">
+            <span class="option-icon">🏠</span>
+            <span class="option-label">Gia đình / Người thân</span>
+          </div>
+          <div class="option-card" onclick="nextStep(2)">
+            <span class="option-icon">✨</span>
+            <span class="option-label">Bạn bè thân thiết</span>
+          </div>
+          <div class="option-card" onclick="nextStep(2)">
+            <span class="option-icon">💼</span>
+            <span class="option-label">Đồng nghiệp / Đối tác</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2 -->
+      <section id="step2" class="finder-step">
+        <h1 class="finder-title">Cảm xúc bạn muốn gửi gắm?</h1>
+        <div class="options-grid">
+          <div class="option-card" onclick="nextStep(3)">
+            <span class="option-icon">🌸</span>
+            <span class="option-label">Yêu thương & Quan tâm</span>
+          </div>
+          <div class="option-card" onclick="nextStep(3)">
+            <span class="option-icon">🌈</span>
+            <span class="option-label">An ủi & Động viên</span>
+          </div>
+          <div class="option-card" onclick="nextStep(3)">
+            <span class="option-icon">🎉</span>
+            <span class="option-label">Chúc mừng & Ăn mừng</span>
+          </div>
+          <div class="option-card" onclick="nextStep(3)">
+            <span class="option-icon">🍃</span>
+            <span class="option-label">Healing & Self-care</span>
+          </div>
+        </div>
+        <div class="finder-footer">
+          <button class="btn btn-ghost" onclick="prevStep(1)">← Quay lại</button>
+        </div>
+      </section>
+
+      <!-- Step 3 -->
+      <section id="step3" class="finder-step">
+        <h1 class="finder-title">Mức ngân sách của bạn?</h1>
+        <div class="options-grid">
+          <div class="option-card" onclick="showResults()">
+            <span class="option-icon">🌱</span>
+            <span class="option-label">Dưới 200.000 đ</span>
+          </div>
+          <div class="option-card" onclick="showResults()">
+            <span class="option-icon">🍀</span>
+            <span class="option-label">200k - 500k</span>
+          </div>
+          <div class="option-card" onclick="showResults()">
+            <span class="option-icon">💎</span>
+            <span class="option-label">Trên 500.000 đ</span>
+          </div>
+          <div class="option-card" onclick="showResults()">
+            <span class="option-icon">🎁</span>
+            <span class="option-label">Tùy chọn linh hoạt</span>
+          </div>
+        </div>
+        <div class="finder-footer">
+          <button class="btn btn-ghost" onclick="prevStep(2)">← Quay lại</button>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section id="results" class="finder-step">
+        <h1 class="finder-title">Gợi ý hoàn hảo cho bạn</h1>
+        <p style="text-align: center; color: var(--text-muted); margin-top: -2rem;">Dựa trên lựa chọn của bạn, đây là những hộp quà phù hợp nhất.</p>
+        
+        <div class="result-grid" id="resultsGrid">
+          <!-- Rendered by JS -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 4rem;">
+          <button class="btn btn-ghost" onclick="restartFinder()">🔄 Làm lại từ đầu</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    function nextStep(step) {
+      document.querySelectorAll('.finder-step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step' + step).classList.add('active');
+      window.scrollTo(0, 0);
+    }
+
+    function prevStep(step) {
+      document.querySelectorAll('.finder-step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step' + step).classList.add('active');
+    }
+
+    function showResults() {
+      document.querySelectorAll('.finder-step').forEach(s => s.classList.remove('active'));
+      document.getElementById('results').classList.add('active');
+      
+      const grid = document.getElementById('resultsGrid');
+      // Mix featured boxes for demonstration
+      const results = FEATURED_BOXES.slice(0, 3);
+      
+      grid.innerHTML = results.map(box => `
+        <div class="box-card">
+          <div class="box-image">
+            <img src="${box.image}" alt="${box.name}">
+            <div class="box-badge">${box.category}</div>
+          </div>
+          <div class="box-content">
+            <h3 class="box-name">${box.name}</h3>
+            <p class="box-tagline">${box.tagline}</p>
+            <div class="box-footer">
+              <span class="box-price">${formatPrice(box.price)}</span>
+              <button class="btn btn-primary" onclick="addToCart('${box.id}')">🛒 Thêm</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function restartFinder() {
+      nextStep(1);
+    }
+  </script>
+</body>
+</html>

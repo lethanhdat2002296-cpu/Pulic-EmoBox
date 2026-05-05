@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tài Khoản - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .account-container { padding-top: 4rem; padding-bottom: 6rem; }
+    .account-layout { display: grid; grid-template-columns: 280px 1fr; gap: 3rem; }
+    
+    .account-sidebar { background: white; border-radius: 24px; border: 1px solid var(--border); padding: 1.5rem; height: fit-content; }
+    .sidebar-user { text-align: center; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .user-avatar-lg { width: 80px; height: 80px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; margin: 0 auto 1rem; }
+    
+    .sidebar-nav { list-style: none; }
+    .sidebar-nav-item { padding: 0.875rem 1rem; border-radius: 12px; cursor: pointer; transition: 0.2s; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.75rem; }
+    .sidebar-nav-item:hover { background: #f8fafc; color: var(--text-main); }
+    .sidebar-nav-item.active { background: #f0f9ff; color: var(--primary); font-weight: 700; }
+    
+    .account-content { background: white; border-radius: 24px; border: 1px solid var(--border); padding: 2.5rem; }
+    .content-section { display: none; }
+    .content-section.active { display: block; }
+    
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; }
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
+    .form-input { width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: border-color 0.2s; }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+
+    @media (max-width: 992px) {
+      .account-layout { grid-template-columns: 1fr; }
+      .account-sidebar { display: flex; overflow-x: auto; padding: 1rem; gap: 1rem; }
+      .sidebar-user { display: none; }
+      .sidebar-nav { display: flex; gap: 0.5rem; }
+      .sidebar-nav-item { white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing & Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item active">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container account-container">
+    <div class="account-layout">
+      <aside class="account-sidebar">
+        <div class="sidebar-user">
+          <div class="user-avatar-lg" id="userInitial">U</div>
+          <h4 id="userNameDisplay">Người dùng EmoBox</h4>
+          <p class="section-subtitle" style="font-size: 0.82rem; margin-top: 0.25rem;">Thành viên từ 2026</p>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="sidebar-nav-item active" onclick="switchTab('profile', this)">👤 Hồ sơ cá nhân</li>
+          <li class="sidebar-nav-item" onclick="switchTab('orders', this)">📦 Đơn hàng của tôi</li>
+          <li class="sidebar-nav-item" onclick="switchTab('subscription', this)">💳 Gói Subscription</li>
+          <li class="sidebar-nav-item" onclick="switchTab('security', this)">🔒 Bảo mật</li>
+          <li class="sidebar-nav-item" style="color: #ef4444;" onclick="handleLogout()">🚪 Đăng xuất</li>
+        </ul>
+      </aside>
+
+      <div class="account-content">
+        <!-- Profile Section -->
+        <section id="profile" class="content-section active">
+          <h2 style="margin-bottom: 0.5rem; font-weight: 800;">Hồ sơ cá nhân</h2>
+          <p style="color: var(--text-muted); font-size: 0.875rem;">Cập nhật thông tin của bạn để có trải nghiệm tốt nhất.</p>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Họ và tên</label>
+              <input type="text" class="form-input" id="profileName" value="Nguyễn Văn A">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Số điện thoại</label>
+              <input type="tel" class="form-input" id="profilePhone" value="0912 345 678">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="profileEmail" value="user@example.com" readonly style="background: #f1f5f9; cursor: not-allowed;">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Địa chỉ mặc định</label>
+            <input type="text" class="form-input" id="profileAddress" value="123 Đường ABC, Quận X, TP. HCM">
+          </div>
+          
+          <button class="btn btn-primary" onclick="saveProfile()" style="margin-top: 1rem;">Lưu thay đổi</button>
+        </section>
+
+        <!-- Orders Section -->
+        <section id="orders" class="content-section">
+          <h2 style="margin-bottom: 2rem; font-weight: 800;">Đơn hàng của tôi</h2>
+          <div style="text-align: center; padding: 4rem 0;">
+            <p style="color: var(--text-muted); font-size: 1rem;">Bạn chưa có đơn hàng nào.</p>
+            <a href="index.html" class="btn btn-ghost" style="margin-top: 1rem;">Mua sắm ngay</a>
+          </div>
+        </section>
+
+        <!-- Subscription Section -->
+        <section id="subscription" class="content-section">
+          <h2 style="margin-bottom: 0.5rem; font-weight: 800;">Gói Subscription</h2>
+          <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem;">Quản lý gói thành viên và quyền lợi của bạn.</p>
+          
+          <div style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 2rem; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="display: inline-block; background: var(--primary); color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.75rem; text-transform: uppercase;">Gói hiện tại</span>
+              <h3 style="color: var(--primary); font-weight: 800; font-size: 1.5rem;" id="currentPlanName">Gói Premium (12 Tháng)</h3>
+              <p style="color: #0369a1; font-size: 0.875rem; margin-top: 0.25rem;" id="planExpiryDate">Ngày hết hạn: --</p>
+            </div>
+            <a href="plans.html" class="btn btn-primary">Nâng cấp ngay</a>
+          </div>
+          
+          <div style="margin-top: 3rem;">
+            <h4 style="margin-bottom: 1.25rem; font-weight: 700;">Quyền lợi đang có</h4>
+            <ul id="planBenefitsList" style="list-style: none; display: flex; flex-direction: column; gap: 0.85rem;"></ul>
+          </div>
+        </section>
+
+        <!-- Security Section -->
+        <section id="security" class="content-section">
+          <h2 style="margin-bottom: 2rem; font-weight: 800;">Bảo mật tài khoản</h2>
+          <div class="form-group">
+            <label class="form-label">Mật khẩu hiện tại</label>
+            <input type="password" class="form-input" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mật khẩu mới</label>
+            <input type="password" class="form-input" placeholder="Nhập mật khẩu mới">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Xác nhận mật khẩu mới</label>
+            <input type="password" class="form-input" placeholder="Nhập lại mật khẩu mới">
+          </div>
+          <button class="btn btn-primary">Cập nhật mật khẩu</button>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    function switchTab(tabId, el) {
+      document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      
+      document.querySelectorAll('.sidebar-nav-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function initAccount() {
+      const user = JSON.parse(localStorage.getItem('emobox_user'));
+      if (user) {
+        document.getElementById('profileName').value = user.name || '';
+        document.getElementById('profileEmail').value = user.email || '';
+        document.getElementById('profilePhone').value = user.phone || '';
+        document.getElementById('profileAddress').value = user.address || '';
+        document.getElementById('userNameDisplay').textContent = user.name || 'Người dùng EmoBox';
+        document.getElementById('userInitial').textContent = (user.name || 'U').charAt(0).toUpperCase();
+
+        const planBenefits = {
+          'none': [],
+          '3-months': [
+            'Đặt lịch tặng quà linh hoạt trong suốt 3 tháng',
+            'Ưu đãi giảm 5% cho các sản phẩm vào dịp lễ',
+            'Miễn phí giao hàng cho tất cả đơn hàng',
+            'Truy cập tính năng “Build Your Own Box” để tự thiết kế hộp quà theo nhu cầu'
+          ],
+          '6-months': [
+            'Đặt lịch tặng quà linh hoạt trong suốt 6 tháng',
+            'Ưu đãi giảm 7% cho các sản phẩm vào dịp lễ',
+            'Miễn phí giao hàng cho tất cả đơn hàng',
+            'Truy cập tính năng “Build Your Own Box” để tự thiết kế hộp quà theo nhu cầu'
+          ],
+          '12-months': [
+            'Đặt lịch tặng quà linh hoạt trong suốt 12 tháng',
+            'Ưu đãi giảm 10% cho các sản phẩm vào dịp lễ',
+            'Miễn phí giao hàng cho tất cả đơn hàng',
+            'Truy cập tính năng “Build Your Own Box” để tự thiết kế hộp quà theo nhu cầu'
+          ]
+        };
+
+        const planPrices = {
+          'none': '',
+          '3-months': '299.000 đ/gói',
+          '6-months': '499.000 đ/gói',
+          '12-months': '799.000 đ/gói'
+        };
+
+        const benefitsList = document.getElementById('planBenefitsList');
+        const benefits = planBenefits[user.plan] || [];
+        if (benefits.length > 0) {
+          benefitsList.innerHTML = benefits.map(b =>
+            `<li style="display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.9rem;">
+              <span style="color: #059669; font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem;">✅</span>
+              <span>${b}</span>
+            </li>`
+          ).join('');
+          
+          const price = planPrices[user.plan];
+          if (price) {
+            benefitsList.insertAdjacentHTML('beforebegin', `<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Giá gói: <strong style="color: #0284c7;">${price}</strong></p>`);
+          }
+        } else {
+          benefitsList.innerHTML = '<li style="color: var(--text-muted);">Bạn chưa đăng ký gói nào. <a href="plans.html" style="color: var(--primary);">Xem các gói</a></li>';
+        }
+
+        const planNames = {
+          'none': 'Chưa đăng ký',
+          '3-months': 'Gói Essential (3 Tháng)',
+          '6-months': 'Gói Popular (6 Tháng)',
+          '12-months': 'Gói Premium (12 Tháng)'
+        };
+        document.getElementById('currentPlanName').textContent = planNames[user.plan] || 'Chưa đăng ký';
+
+        // Compute expiry date from registeredAt + plan months
+        const planMonths = { 'none': 0, '3-months': 3, '6-months': 6, '12-months': 12 };
+        const months = planMonths[user.plan] || 0;
+        const expiryEl = document.getElementById('planExpiryDate');
+        if (months > 0 && user.registeredAt) {
+          const reg = new Date(user.registeredAt);
+          reg.setMonth(reg.getMonth() + months);
+          const day = String(reg.getDate()).padStart(2, '0');
+          const month = String(reg.getMonth() + 1).padStart(2, '0');
+          const year = reg.getFullYear();
+          expiryEl.textContent = `Ngày hết hạn: ${day}/${month}/${year}`;
+        } else if (months === 0) {
+          expiryEl.textContent = 'Chưa có gói nào hoạt động';
+        } else {
+          expiryEl.textContent = 'Ngày hết hạn: Không xác định';
+        }
+      }
+    }
+
+    async function saveProfile() {
+      const user = JSON.parse(localStorage.getItem('emobox_user')) || {};
+      user.name = document.getElementById('profileName').value;
+      user.phone = document.getElementById('profilePhone').value;
+      user.address = document.getElementById('profileAddress').value;
+      
+      localStorage.setItem('emobox_user', JSON.stringify(user));
+      await EmoBoxApi.upsertUser(user);
+      document.getElementById('userNameDisplay').textContent = user.name;
+      document.getElementById('userInitial').textContent = user.name.charAt(0).toUpperCase();
+      
+      showToast('✅ Đã cập nhật hồ sơ thành công!');
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('emobox_user');
+      window.location.href = 'login.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', initAccount);
+  </script>
+</body>
+</html>

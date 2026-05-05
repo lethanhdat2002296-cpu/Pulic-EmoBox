@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quà Tặng Theo Cảm Xúc - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .cat-container { padding-top: 4rem; padding-bottom: 6rem; }
+    .cat-banner { background: #e0f2fe; padding: 4rem; border-radius: 32px; margin-bottom: 4rem; text-align: center; }
+    .cat-title { font-family: var(--font-serif); font-size: 3rem; margin-bottom: 1rem; }
+
+    /* Package Cards */
+    .packages-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1rem; }
+    @media (min-width: 640px) { .packages-grid { grid-template-columns: repeat(2, 1fr); gap: 2rem; } }
+    @media (min-width: 1024px) { .packages-grid { grid-template-columns: repeat(4, 1fr); } }
+    .pkg-card { background: white; border-radius: 24px; border: 1px solid var(--border); padding: 2rem 1.75rem; display: flex; flex-direction: column; transition: all 0.3s; position: relative; overflow: hidden; }
+    .pkg-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.12); }
+    .pkg-card.highlight { border: 2px solid var(--primary); box-shadow: 0 8px 24px rgba(2,132,199,0.12); }
+    .pkg-accent { position: absolute; top: 0; left: 0; right: 0; height: 5px; border-radius: 24px 24px 0 0; }
+    .pkg-header { margin-bottom: 1.25rem; }
+    .pkg-name { font-weight: 800; font-size: 1.3rem; margin-bottom: 0.25rem; }
+    .pkg-price { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+    .pkg-badge { display: inline-block; background: var(--primary); color: white; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; margin-left: 0.5rem; vertical-align: middle; letter-spacing: 0.5px; }
+    .pkg-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+    .pkg-section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .pkg-items { list-style: none; padding: 0; margin: 0 0 1rem 0; }
+    .pkg-items li { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.875rem; color: #475569; margin-bottom: 0.4rem; }
+    .pkg-items li .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 0.4rem; }
+    .dot-fix { background: var(--primary); }
+    .dot-pick { background: #f59e0b; }
+    .pkg-pick-note { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-bottom: 1.25rem; }
+    .pkg-btn { margin-top: auto; padding: 0.75rem; border-radius: 12px; font-weight: 700; font-size: 0.9rem; cursor: pointer; border: none; transition: all 0.2s; }
+    .pkg-btn-primary { background: var(--primary); color: white; }
+    .pkg-btn-primary:hover { background: var(--primary-hover); }
+    .pkg-btn-outline { background: transparent; border: 2px solid #bae6fd; color: var(--primary); }
+    .pkg-btn-outline:hover { background: #f0f9ff; }
+
+    /* Modal */
+    .pkg-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 900; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    .pkg-overlay.active { opacity: 1; pointer-events: all; }
+    .pkg-modal { background: white; border-radius: 24px; width: 90%; max-width: 480px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; transform: translateY(30px) scale(0.97); transition: transform 0.25s; box-shadow: 0 25px 60px -10px rgba(0,0,0,0.25); }
+    .pkg-overlay.active .pkg-modal { transform: translateY(0) scale(1); }
+    .pkg-modal-header { padding: 1.5rem 1.75rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+    .pkg-modal-title { font-size: 1.25rem; font-weight: 800; margin-bottom: 0.2rem; }
+    .pkg-modal-sub { font-size: 0.82rem; color: var(--text-muted); }
+    .pkg-modal-close { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+    .pkg-modal-close:hover { background: #e2e8f0; }
+    .pkg-modal-progress { padding: 0.85rem 1.75rem; background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
+    .pkg-modal-progress strong { color: var(--primary); }
+    .pkg-modal-body { overflow-y: auto; padding: 1.25rem 1.75rem; flex: 1; }
+    .pick-option { display: flex; align-items: center; gap: 0.875rem; padding: 0.85rem 1rem; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 0.65rem; cursor: pointer; transition: all 0.18s; user-select: none; }
+    .pick-option:hover { border-color: #bae6fd; background: #f0f9ff; }
+    .pick-option.selected { border-color: var(--primary); background: #e0f2fe; }
+    .pick-option.disabled { opacity: 0.4; cursor: not-allowed; }
+    .pick-checkbox { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.18s; }
+    .pick-option.selected .pick-checkbox { background: var(--primary); border-color: var(--primary); color: white; font-size: 0.75rem; }
+    .pick-label { font-size: 0.92rem; font-weight: 500; }
+    .pkg-modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--border); display: flex; gap: 0.75rem; }
+    .pkg-modal-footer .btn-add { flex: 1; padding: 0.85rem; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; }
+    .pkg-modal-footer .btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pkg-modal-footer .btn-add:not(:disabled):hover { background: var(--primary-hover); }
+    .pkg-modal-footer .btn-cancel { padding: 0.85rem 1.25rem; background: #f1f5f9; border: none; border-radius: 12px; font-weight: 600; font-size: 0.9rem; cursor: pointer; color: var(--text-muted); transition: background 0.2s; }
+    .pkg-modal-footer .btn-cancel:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <div class="nav-dropdown active">
+          <a href="emotion-gifts.html" class="nav-link active">Quà Cảm Xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Healing & Self-care</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">📋 Hồ sơ</a>
+            <a href="cart.html" class="user-menu-item">📦 Đơn hàng</a>
+            <a href="plans.html" class="user-menu-item">💳 Subscription</a>
+            <a href="calendar.html" class="user-menu-item">📅 Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">💰 Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container cat-container">
+    <div class="cat-banner" id="catBanner">
+      <h1 class="cat-title" id="catTitle">Quà Tặng Cảm Xúc</h1>
+      <p class="section-subtitle" id="catDesc">Tìm những món quà chạm đến trái tim người nhận</p>
+    </div>
+
+    <div class="packages-grid" id="packagesGrid">
+      <!-- Rendered by JS -->
+    </div>
+  </main>
+
+  <!-- PACKAGE SELECTION MODAL -->
+  <div class="pkg-overlay" id="pkgOverlay" onclick="handleOverlayClick(event)">
+    <div class="pkg-modal" id="pkgModal">
+      <div class="pkg-modal-header">
+        <div>
+          <h3 class="pkg-modal-title" id="modalTitle">Chọn Gói</h3>
+          <p class="pkg-modal-sub" id="modalSub">🔒 Cố định: ...</p>
+        </div>
+        <button class="pkg-modal-close" onclick="closePkgModal()">✕</button>
+      </div>
+      <div class="pkg-modal-image-container" id="pkgImageContainer" style="display:none; text-align:center; padding: 1rem 1.5rem 0;">
+        <img id="pkgImage" src="" style="width:100%; max-height:200px; object-fit:contain; border-radius:12px; background:#f8fafc; border:1px solid var(--border);">
+      </div>
+      <div class="pkg-modal-progress" id="modalProgress"></div>
+      <div class="pkg-modal-body" id="modalBody"></div>
+      <div class="pkg-modal-footer">
+        <button class="btn-cancel" onclick="closePkgModal()">Hủy</button>
+        <button class="btn-add" id="modalAddBtn" onclick="addPkgToCart()" disabled>Thêm vào giỏ hàng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo" style="display: block; margin-bottom: 1rem;">
+          <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+        </span>
+        <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
+        <div class="footer-socials">
+          <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
+          <a href="#" class="social-btn">in</a>
+          <a href="#" class="social-btn">ig</a>
+        </div>
+        <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+            <span>📍</span><span>279 Nguyễn Tri Phương, phường Diên Hồng, TP. HCM</span>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📧</span><a href="mailto:info.emobox@gmail.com" style="color: var(--text-muted); text-decoration: none;">info.emobox@gmail.com</a>
+          </p>
+          <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+            <span>📞</span><a href="tel:0917297709" style="color: var(--text-muted); text-decoration: none;">0917 297 709</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="finder.html">Tìm Khám Phá Quà</a></li>
+          <li><a href="plans.html">Gói Đăng Ký</a></li>
+          <li><a href="calendar.html">Lịch Tặng Quà</a></li>
+          <li><a href="wallet.html">Ví EmoBox</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Hỗ trợ</h4>
+        <ul>
+          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="contact.html">Liên hệ</a></li>
+          <li><a href="#">Theo dõi Đơn hàng</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#">Chính sách Bảo mật</a></li>
+          <li><a href="#">Điều khoản Dịch vụ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 EmoBox. Đã đăng ký bản quyền.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const cat = urlParams.get('cat');
+    
+    const categories = {
+      'an-ui-dong-vien': { title: 'An ủi và động viên', desc: 'Gửi trao sự ấm áp khi họ cần bạn nhất.', bg: '#fef3c7' },
+      'xin-loi-lam-hoa': { title: 'Xin lỗi và làm hòa', desc: 'Lời xin lỗi chân thành nhất nằm gọn trong một chiếc hộp.', bg: '#f1f5f9' },
+      'tiep-suc-truyen-dong-luc': { title: 'Tiếp sức & Truyền động lực', desc: 'Cổ vũ tinh thần để họ vượt qua mọi thử thách.', bg: '#dcfce7' },
+      'yeu-thuong-quan-tam': { title: 'Yêu thương và quan tâm', desc: 'Sự quan tâm tinh tế dành cho người đặc biệt.', bg: '#ffe4e6' },
+      'chuc-mung-an-mung': { title: 'Chúc mừng và ăn mừng', desc: 'Bật tung cảm xúc vui vẻ cùng những thành tựu mới.', bg: '#fef9c3' },
+      'healing-self-care': { title: 'Healing & Self-care', desc: 'Yêu bản thân là khởi đầu của một cuộc tình lãng mạn trọn đời.', bg: '#f0fdf4' }
+    };
+
+    if (cat && categories[cat]) {
+      document.getElementById('catTitle').textContent = categories[cat].title;
+      document.getElementById('catDesc').textContent = categories[cat].desc;
+      document.getElementById('catBanner').style.background = categories[cat].bg;
+    }
+
+    /* ===== PACKAGE DATA ===== */
+    const PKG_DATA = {
+      mini: {
+        name: 'Gói Mini',
+        price: '99.000 đ',
+        priceNum: 99000,
+        picks: 1,
+        fixedItems: ['Thiệp / Thư tay', 'Nến thơm size nhỏ'],
+        options: ['Sticker pack', 'Bookmark', 'Kẹo / Chocolate nhỏ', 'Bút', 'Charm nhỏ', 'Hoa khô mini']
+      },
+      basic: {
+        name: 'Gói Basic',
+        price: '199.000 đ',
+        priceNum: 199000,
+        picks: 2,
+        fixedItems: ['Thiệp / Thư tay', 'Nến thơm size vừa'],
+        options: ['Snack / Chocolate', 'Trà / Cà phê gói', 'Bookmark', 'Bút', 'Sticky notes', 'Sticker', 'Hoa khô mini', 'Móc khóa', 'Tất / Vớ basic']
+      },
+      standard: {
+        name: 'Gói Standard',
+        price: '399.000 đ',
+        priceNum: 399000,
+        picks: 2,
+        fixedItems: ['Thiệp cá nhân hóa', 'Nến thơm size lớn', 'Sổ tay'],
+        options: ['Gấu bông mini', 'Tinh dầu', 'Sleep mask', 'Bookmark', 'Bút premium', 'Sticky notes', 'Hoa khô', 'Móc khóa', 'Pouch nhỏ', 'Tất / Vớ', 'Chocolate hộp nhỏ', 'Túi chườm']
+      },
+      premium: {
+        name: 'Gói Premium Plus',
+        price: '599.000 đ',
+        priceNum: 599000,
+        picks: 4,
+        fixedItems: ['Thiệp cá nhân hóa', 'Tinh dầu cao cấp', 'Ly giữ nhiệt', 'Snack / Trà set nhỏ'],
+        options: ['Gấu bông mini', 'Hoa khô', 'Sleep mask', 'Bath items', 'Túi chườm bụng', 'Ly giữ nhiệt', 'Móc khóa', 'Phụ kiện nhỏ', 'Đèn ngủ mini', 'Bookmark', 'Bút premium', 'Sticker / Charm', 'Chocolate premium', 'Cà phê / Trà set', 'Tất / Vớ', 'Pouch', 'Túi chườm']
+      }
+    };
+
+    const TIER_CONFIG = {
+      mini:     { accent: 'linear-gradient(90deg,#bae6fd,#7dd3fc)', highlight: false, btnClass: 'pkg-btn-outline', btnStyle: 'width:100%;',                              badge: null },
+      basic:    { accent: 'linear-gradient(90deg,#6ee7b7,#34d399)', highlight: true,  btnClass: 'pkg-btn-primary', btnStyle: 'width:100%;',                              badge: 'Phổ biến' },
+      standard: { accent: 'linear-gradient(90deg,#0284c7,#38bdf8)', highlight: false, btnClass: 'pkg-btn-outline', btnStyle: 'width:100%;',                              badge: null },
+      premium:  { accent: 'linear-gradient(90deg,#a78bfa,#7c3aed)', highlight: false, btnClass: 'pkg-btn-outline', btnStyle: 'width:100%; border-color:#a78bfa; color:#7c3aed;', badge: 'Plus', badgeStyle: 'background:#7c3aed;' }
+    };
+
+    function renderPackages() {
+      const grid = document.getElementById('packagesGrid');
+      if (!grid) return;
+      const tiers = ['mini', 'basic', 'standard', 'premium'];
+      grid.innerHTML = tiers.map(key => {
+        const d = PKG_DATA[key];
+        const t = TIER_CONFIG[key];
+        const badgeHTML = t.badge
+          ? (key === 'premium'
+              ? `<span class="pkg-badge" style="${t.badgeStyle || ''}">${t.badge}</span>`
+              : `<span class="pkg-badge">${t.badge}</span>`)
+          : '';
+        const fixedHTML = d.fixedItems.map(f => `<li><span class="dot dot-fix"></span>${f}</li>`).join('');
+        const optHTML   = d.options.map(o => `<li><span class="dot dot-pick"></span>${o}</li>`).join('');
+        const highlightClass = t.highlight ? ' highlight' : '';
+        return `
+          <div class="pkg-card${highlightClass}">
+            <div class="pkg-accent" style="background:${t.accent};"></div>
+            <div class="pkg-header">
+              <p class="pkg-name">${d.name} ${badgeHTML}</p>
+              <p class="pkg-price">${d.price}</p>
+            </div>
+            <hr class="pkg-divider">
+            <p class="pkg-section-label">📋 Sản phẩm cố định (${d.fixedItems.length} món)</p>
+            <ul class="pkg-items">${fixedHTML}</ul>
+            <p class="pkg-section-label">✨ Tự chọn thêm (${d.picks} món)</p>
+            <ul class="pkg-items">${optHTML}</ul>
+            <p class="pkg-pick-note">* Chọn ${d.picks} trong số các món trên</p>
+            <button class="pkg-btn ${t.btnClass}" style="${t.btnStyle}" onclick="openPkgModal('${key}')">Chọn ${d.name}</button>
+          </div>`;
+      }).join('');
+    }
+
+    let currentPkg = null;
+    let selectedPicks = [];
+
+    function openPkgModal(pkgKey) {
+      currentPkg = PKG_DATA[pkgKey];
+      selectedPicks = [];
+      const pkg = currentPkg;
+
+      document.getElementById('modalTitle').textContent = pkg.name + ' - ' + pkg.price;
+      document.getElementById('modalSub').textContent =
+        '🔒 Cố định: ' + pkg.fixedItems.join(', ');
+
+      const PKG_IMAGES = {
+        'an-ui-dong-vien': {
+          'mini': '1. Mini Support.png',
+          'basic': '2. Basic Support.png',
+          'standard': '3. Standard Support.png',
+          'premium': '4. Premium Support.png'
+        },
+        'chuc-mung-an-mung': {
+          'mini': '1. Mini Celebration.png',
+          'basic': '2. Basic Celebration.png',
+          'standard': '3. Standard Celebration.png',
+          'premium': '4. Premium Celebration.png'
+        },
+        'tiep-suc-truyen-dong-luc': {
+          'mini': '1. Mini Motivation.png',
+          'basic': '2. Basic Motivation.png',
+          'standard': '3. Standard Motivation.png',
+          'premium': '4. Premium Motivation.png'
+        },
+        'yeu-thuong-quan-tam': {
+          'mini': '1. Mini Love.png',
+          'basic': '2. Basic Love.png',
+          'standard': '3. Standard Love.png',
+          'premium': '4. Premium Love.png'
+        },
+        'xin-loi-lam-hoa': {
+          'mini': '1. Mini Sorry.png',
+          'basic': '2. Basic Sorry.png',
+          'standard': '3. Standard Sorry.png',
+          'premium': '4. Premium Sorry.png'
+        },
+        'healing-self-care': {
+          'mini': '1. Mini Healing.png',
+          'basic': '2. Basic Healing.png',
+          'standard': '3. Standard Healing.png',
+          'premium': '4. Premium Healing.png'
+        }
+      };
+
+      const imgContainer = document.getElementById('pkgImageContainer');
+      const imgEl = document.getElementById('pkgImage');
+      const currentCat = cat || 'an-ui-dong-vien'; // fallback if no cat in URL
+
+      if (PKG_IMAGES[currentCat] && PKG_IMAGES[currentCat][pkgKey]) {
+        imgEl.src = PKG_IMAGES[currentCat][pkgKey];
+        imgContainer.style.display = 'block';
+      } else {
+        imgContainer.style.display = 'none';
+      }
+
+      updateProgress();
+
+      const body = document.getElementById('modalBody');
+      body.innerHTML = pkg.options.map((opt, idx) => `
+        <label class="pick-option" id="opt-${idx}" onclick="togglePick('${opt.replace(/'/g, "\\'")}', ${idx})">
+          <div class="pick-checkbox" id="chk-${idx}"></div>
+          <span class="pick-label">${opt}</span>
+        </label>
+      `).join('');
+
+      document.getElementById('pkgOverlay').classList.add('active');
+    }
+
+    function closePkgModal() {
+      document.getElementById('pkgOverlay').classList.remove('active');
+      currentPkg = null;
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target.id === 'pkgOverlay') closePkgModal();
+    }
+
+    function updateProgress() {
+      if (!currentPkg) return;
+      const count = selectedPicks.length;
+      const max = currentPkg.picks;
+      const prog = document.getElementById('modalProgress');
+      const btn = document.getElementById('modalAddBtn');
+
+      if (count < max) {
+        prog.innerHTML = count === 0 ? `Vui lòng chọn đủ <strong>${max}</strong> món tự chọn` : `Đã chọn: <strong>${count} / ${max}</strong> món tự chọn`;
+        btn.disabled = true;
+        btn.textContent = 'Chọn đủ món để tiếp tục';
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+      } else {
+        prog.innerHTML = `Đã chọn đủ: <strong>${max} / ${max}</strong> món tự chọn`;
+        btn.disabled = false;
+        btn.textContent = 'Thêm vào giỏ hàng';
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+      }
+    }
+
+    function togglePick(optName, idx) {
+      const idxInArr = selectedPicks.indexOf(optName);
+      if (idxInArr > -1) {
+        selectedPicks.splice(idxInArr, 1);
+        document.getElementById('opt-' + idx).classList.remove('selected');
+        document.getElementById('chk-' + idx).textContent = '';
+      } else {
+        if (selectedPicks.length >= currentPkg.picks) {
+          showToast('Bạn đã chọn đủ số lượng món tự chọn!');
+          return;
+        }
+        selectedPicks.push(optName);
+        document.getElementById('opt-' + idx).classList.add('selected');
+        document.getElementById('chk-' + idx).textContent = '✓';
+      }
+      
+      const allLabels = document.querySelectorAll('.pick-option');
+      if (selectedPicks.length >= currentPkg.picks) {
+        allLabels.forEach(lbl => {
+          if (!lbl.classList.contains('selected')) lbl.classList.add('disabled');
+        });
+      } else {
+        allLabels.forEach(lbl => lbl.classList.remove('disabled'));
+      }
+      
+      updateProgress();
+    }
+
+    function addPkgToCart() {
+      if (!currentPkg) return;
+
+      const pkgId = 'pkg_' + Date.now();
+      
+      cart.push({
+        id: pkgId,
+        isPkg: true,
+        name: currentPkg.name,
+        image: document.getElementById('pkgImage').src,
+        pkgPrice: currentPkg.price,
+        priceNum: currentPkg.priceNum,
+        fixedItems: [...currentPkg.fixedItems],
+        selectedPicks: [...selectedPicks],
+        quantity: 1
+      });
+
+      localStorage.setItem('emobox_cart', JSON.stringify(cart));
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      
+      closePkgModal();
+      showToast('🛍️ Đã thêm gói quà vào giỏ hàng!');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      renderPackages();
+    });
+  </script>
+</body>
+</html>
