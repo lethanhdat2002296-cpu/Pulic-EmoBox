@@ -65,12 +65,11 @@
               <span>💳</span>
             </div>
             <div class="card-form">
-              <input type="text" id="bankCardNum" class="form-input" placeholder="Số thẻ (0000 0000 0000 0000)">
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="bankCardExp" class="form-input" placeholder="MM/YY" style="flex: 1;">
-                <input type="text" id="bankCardCvc" class="form-input" placeholder="CVC" style="width: 80px;">
+              <input type="text" id="bankCardNum" class="form-input" placeholder="Số thẻ (0000 0000 0000 0000)" pattern="^[\d\s]{16,19}$" title="Số thẻ phải gồm 16-19 chữ số">
+                <input type="text" id="bankCardExp" class="form-input" placeholder="MM/YY" style="flex: 1;" pattern="^(0[1-9]|1[0-2])\/?([0-9]{2})$" title="Tháng/Năm hết hạn hợp lệ (MM/YY)">
+                <input type="text" id="bankCardCvc" class="form-input" placeholder="CVC" style="width: 80px;" pattern="^[0-9]{3,4}$" title="Mã bảo mật gồm 3 hoặc 4 chữ số">
               </div>
-              <input type="text" id="bankCardName" class="form-input" placeholder="Tên in trên thẻ" style="margin-bottom: 0;">
+              <input type="text" id="bankCardName" class="form-input" placeholder="Tên in trên thẻ" style="margin-bottom: 0;" pattern="^[a-zA-Z\s]+$" title="Tên in trên thẻ không dấu">
             </div>
           </div>
         </label>
@@ -137,13 +136,14 @@
     async function confirmPayment() {
       if (!user || !pending || !planDetails[pending]) return;
       
-      const cardNum = document.getElementById('bankCardNum').value.trim();
-      const cardExp = document.getElementById('bankCardExp').value.trim();
-      const cardCvc = document.getElementById('bankCardCvc').value.trim();
-      const cardName = document.getElementById('bankCardName').value.trim();
+      const cardNum = document.getElementById('bankCardNum');
+      const cardExp = document.getElementById('bankCardExp');
+      const cardCvc = document.getElementById('bankCardCvc');
+      const cardName = document.getElementById('bankCardName');
       
-      if (!cardNum || !cardExp || !cardCvc || !cardName) {
-        showToast('Vui lòng nhập đầy đủ thông tin thẻ ngân hàng!');
+      if (!cardNum.value.trim() || !cardExp.value.trim() || !cardCvc.value.trim() || !cardName.value.trim() || 
+          !cardNum.checkValidity() || !cardExp.checkValidity() || !cardCvc.checkValidity() || !cardName.checkValidity()) {
+        showToast('Vui lòng nhập đầy đủ thông tin thẻ ngân hàng hợp lệ!');
         return;
       }
       
