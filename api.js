@@ -49,6 +49,9 @@
     upsertUser(user, extra) {
       return request('/api/users/upsert', { user: Object.assign(compactUser(user) || {}, extra || {}) });
     },
+    loginUser(email, password) {
+      return request('/api/users/login', { email, password });
+    },
     activateSubscription(user, planCode, plan, paymentMethod) {
       return request('/api/subscriptions/activate', {
         user: compactUser(user),
