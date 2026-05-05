@@ -125,28 +125,30 @@
           <h2 style="margin-bottom: 0.5rem; font-weight: 800;">Hồ sơ cá nhân</h2>
           <p style="color: var(--text-muted); font-size: 0.875rem;">Cập nhật thông tin của bạn để có trải nghiệm tốt nhất.</p>
           
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Họ và tên</label>
-              <input type="text" class="form-input" id="profileName" value="Nguyễn Văn A">
+          <form onsubmit="event.preventDefault(); saveProfile()">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Họ và tên</label>
+                <input type="text" class="form-input" id="profileName" value="Nguyễn Văn A" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Số điện thoại</label>
+                <input type="tel" class="form-input" id="profilePhone" value="0912 345 678" required pattern="^0[0-9]{9}$" title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0">
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Số điện thoại</label>
-              <input type="tel" class="form-input" id="profilePhone" value="0912 345 678">
-            </div>
-          </div>
           
           <div class="form-group">
             <label class="form-label">Email</label>
             <input type="email" class="form-input" id="profileEmail" value="user@example.com" readonly style="background: #f1f5f9; cursor: not-allowed;">
           </div>
           
-          <div class="form-group">
-            <label class="form-label">Địa chỉ mặc định</label>
-            <input type="text" class="form-input" id="profileAddress" value="123 Đường ABC, Quận X, TP. HCM">
-          </div>
-          
-          <button class="btn btn-primary" onclick="saveProfile()" style="margin-top: 1rem;">Lưu thay đổi</button>
+            <div class="form-group">
+              <label class="form-label">Địa chỉ mặc định</label>
+              <input type="text" class="form-input" id="profileAddress" value="123 Đường ABC, Quận X, TP. HCM" required minlength="5">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Lưu thay đổi</button>
+          </form>
         </section>
 
         <!-- Orders Section -->
@@ -181,19 +183,21 @@
         <!-- Security Section -->
         <section id="security" class="content-section">
           <h2 style="margin-bottom: 2rem; font-weight: 800;">Bảo mật tài khoản</h2>
-          <div class="form-group">
-            <label class="form-label">Mật khẩu hiện tại</label>
-            <input type="password" class="form-input" placeholder="••••••••">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Mật khẩu mới</label>
-            <input type="password" class="form-input" placeholder="Nhập mật khẩu mới">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Xác nhận mật khẩu mới</label>
-            <input type="password" class="form-input" placeholder="Nhập lại mật khẩu mới">
-          </div>
-          <button class="btn btn-primary">Cập nhật mật khẩu</button>
+          <form onsubmit="event.preventDefault(); showToast('Đã cập nhật mật khẩu!');">
+            <div class="form-group">
+              <label class="form-label">Mật khẩu hiện tại</label>
+              <input type="password" class="form-input" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mật khẩu mới</label>
+              <input type="password" class="form-input" placeholder="Nhập mật khẩu mới" required minlength="6" title="Mật khẩu phải có ít nhất 6 ký tự">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Xác nhận mật khẩu mới</label>
+              <input type="password" class="form-input" placeholder="Nhập lại mật khẩu mới" required minlength="6" title="Mật khẩu phải có ít nhất 6 ký tự">
+            </div>
+            <button type="submit" class="btn btn-primary">Cập nhật mật khẩu</button>
+          </form>
         </section>
       </div>
     </div>
