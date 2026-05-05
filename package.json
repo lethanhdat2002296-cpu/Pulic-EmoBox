@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "EmoBox static site with a local SQL Server persistence API.",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "check": "node --check server.js && node --check api.js"
+    "local": "node local-server.js",
+    "check": "node --check local-server.js && node --check api.js"
   }
 }
