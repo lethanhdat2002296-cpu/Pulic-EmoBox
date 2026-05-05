@@ -158,13 +158,22 @@
         registeredAt: new Date().toISOString()
       };
       
-      localStorage.setItem('emobox_user', JSON.stringify(user));
-      await EmoBoxApi.upsertUser(user, { password: pass });
-      showToast('🎉 Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
-      
-      setTimeout(() => {
-        window.location.href = 'login.html';
-      }, 1500);
+      try {
+        const result = await EmoBoxApi.upsertUser(user, { password: pass });
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        // Chỉ lưu vào localStorage khi đăng ký SQL thành công
+        localStorage.setItem('emobox_user', JSON.stringify(user));
+        showToast('🎉 Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
+        
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 1500);
+      } catch (err) {
+        showToast('⚠ Lỗi Đăng Ký: ' + err.message);
+      }
     }
   </script>
 </body>
