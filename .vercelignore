@@ -2,6 +2,8 @@
 .env*
 .vercel/
 node_modules/
+package.json
+server.js
 local-server.js
 sql/
 server.out.log
