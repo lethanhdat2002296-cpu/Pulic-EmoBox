@@ -83,19 +83,8 @@
           // Lấy tài khoản từ localStorage nếu API tắt
           let user = JSON.parse(localStorage.getItem('emobox_user'));
           if (!user || user.email !== email) {
-            user = {
-              name: 'Khách Hàng',
-              email: email,
-              phone: '',
-              address: '',
-              balance: 0,
-              plan: 'none',
-              pendingPlan: null,
-              registeredAt: new Date().toISOString()
-            };
+            throw new Error('Tài khoản chưa tồn tại!');
           }
-          localStorage.setItem('emobox_user', JSON.stringify(user));
-          await EmoBoxApi.upsertUser(user, { password: pass });
           finishLogin(user);
         } else {
           const user = {
