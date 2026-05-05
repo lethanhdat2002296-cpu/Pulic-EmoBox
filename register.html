@@ -45,7 +45,7 @@
       <form onsubmit="handleRegister(event)">
         <div class="form-group">
           <label class="form-label">Họ và Tên</label>
-          <input type="text" class="form-input" id="regName" placeholder="Nguyễn Văn A" required>
+          <input type="text" class="form-input" id="regName" placeholder="Nguyễn Văn A" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
         </div>
         <div class="form-group">
           <label class="form-label">Địa chỉ Email</label>
@@ -53,11 +53,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">Số điện thoại</label>
-          <input type="tel" class="form-input" id="regPhone" placeholder="0912345678" required>
+          <input type="tel" class="form-input" id="regPhone" placeholder="0912345678" required pattern="^0[0-9]{9}$" title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0">
         </div>
         <div class="form-group">
           <label class="form-label">Mật khẩu</label>
-          <input type="password" class="form-input" id="regPass" placeholder="••••••••" required>
+          <input type="password" class="form-input" id="regPass" placeholder="••••••••" required minlength="6" title="Mật khẩu phải có ít nhất 6 ký tự">
         </div>
         
         <div class="form-group" style="margin-top: 2rem;">
@@ -140,10 +140,10 @@
         return;
       }
       
-      // Phone validation (exactly 10 digits)
-      const phoneRegex = /^[0-9]{10}$/;
+      // Phone validation (10 digits starting with 0)
+      const phoneRegex = /^0[0-9]{9}$/;
       if (!phoneRegex.test(phone)) {
-        showToast('Số điện thoại không hợp lệ (phải gồm 10 chữ số)!');
+        showToast('Số điện thoại không hợp lệ (phải gồm 10 chữ số và bắt đầu bằng số 0)!');
         return;
       }
       
