@@ -2,7 +2,8 @@
   const isLocalHost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
   const isVercel = window.location.hostname.endsWith('.vercel.app');
   const apiBase = window.EMOBOX_API_BASE || (window.location.protocol === 'file:' ? 'http://localhost:3000' : '');
-  const apiEnabled = Boolean(window.EMOBOX_API_BASE) || (isLocalHost && !isVercel);
+  // Enable API if we have an explicit base, OR if we are on localhost, OR if we are on Vercel.
+  const apiEnabled = Boolean(window.EMOBOX_API_BASE) || isLocalHost || isVercel;
 
   function toNumber(value, fallback) {
     const num = Number(value);
