@@ -2,9 +2,11 @@
   "name": "emobox-sql",
   "version": "1.0.0",
   "private": true,
-  "description": "EmoBox static site with a local SQL Server persistence API.",
+  "description": "EmoBox static site with Vercel API routes backed by Neon Postgres.",
   "scripts": {
-    "local": "node local-server.js",
-    "check": "node --check local-server.js && node --check api.js"
+    "check": "node --check api.js && node --check lib/db.js"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
   }
 }
