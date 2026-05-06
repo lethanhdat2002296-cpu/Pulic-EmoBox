@@ -4,7 +4,7 @@
   "private": true,
   "description": "EmoBox static site with Vercel API routes backed by Neon Postgres.",
   "scripts": {
-    "check": "node --check api.js && node --check lib/db.js && node --check lib/email.js && node --check api/orders.js && node --check api/users/upsert.js && node --check api/gift-schedules/index.js"
+    "check": "node --check api.js && node --check lib/db.js && node --check lib/email.js && node --check api/orders.js && node --check api/users/upsert.js && node --check api/gift-schedules/index.js && node --check api/email/status.js"
   },
   "dependencies": {
     "nodemailer": "^8.0.7",
