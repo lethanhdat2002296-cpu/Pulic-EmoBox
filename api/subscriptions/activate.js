@@ -1,64 +1,72 @@
-const { runSql, userPayloadSql, sqlString } = require('../../lib/db');
+const { getBody, insertWalletTransaction, setCors, toNumber, upsertUser, withClient } = require('../../lib/db');
+
+function monthsForPlan(planCode) {
+  if (planCode === '3-months') return 3;
+  if (planCode === '6-months') return 6;
+  if (planCode === '12-months') return 12;
+  return 0;
+}
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
+  setCors(res);
 
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
   try {
-    const body = req.body || {};
-    const plan = body.plan || {};
+    const body = getBody(req);
     const planCode = body.planCode || '';
-    const durationMonths = planCode === '3-months' ? 3 : planCode === '6-months' ? 6 : planCode === '12-months' ? 12 : 0;
-    const amount = Number(plan.price || 0);
+    const plan = body.plan || {};
+    const amount = toNumber(plan.price, 0);
+    const months = monthsForPlan(planCode);
 
-    const script = `
-SET NOCOUNT ON;
-BEGIN TRAN;
-${userPayloadSql(body.user)}
+    const result = await withClient(async client => {
+      const user = await upsertUser(client, body.user);
+      const startAt = new Date();
+      const endAt = months > 0 ? new Date(startAt) : null;
+      if (endAt) endAt.setMonth(endAt.getMonth() + months);
 
-DECLARE @PlanCode NVARCHAR(30) = ${sqlString(planCode)};
-DECLARE @PlanName NVARCHAR(100) = ${sqlString(plan.name || planCode)};
-DECLARE @Amount DECIMAL(18,2) = ${Number.isFinite(amount) ? amount : 0};
-DECLARE @PaymentMethod NVARCHAR(30) = ${sqlString(body.paymentMethod || 'card')};
-DECLARE @StartAt DATETIME2(0) = SYSUTCDATETIME();
-DECLARE @EndAt DATETIME2(0) = CASE WHEN ${durationMonths} > 0 THEN DATEADD(MONTH, ${durationMonths}, @StartAt) ELSE NULL END;
-DECLARE @BalanceAfter DECIMAL(18,2) = COALESCE(TRY_CONVERT(DECIMAL(18,2), JSON_VALUE(@UserPayload, '$.balance')), 0);
+      await client.query(
+        `
+        UPDATE "B20Users"
+        SET plan_code = $1,
+            pending_plan_code = NULL,
+            registered_at = $2,
+            updated_at = NOW()
+        WHERE user_id = $3
+        `,
+        [planCode, startAt.toISOString(), user.userId]
+      );
 
-IF @UserId IS NOT NULL
-BEGIN
-  UPDATE dbo.B20Users
-  SET PlanCode = @PlanCode,
-      PendingPlanCode = NULL,
-      RegisteredAt = @StartAt,
-      UpdatedAt = SYSUTCDATETIME()
-  WHERE UserId = @UserId;
+      await client.query(
+        `
+        INSERT INTO "B30Subscriptions"
+          (user_id, plan_code, plan_name, amount, payment_method, status, start_at, end_at)
+        VALUES
+          ($1, $2, $3, $4, $5, 'active', $6, $7)
+        `,
+        [user.userId, planCode, plan.name || planCode, amount, body.paymentMethod || 'card', startAt.toISOString(), endAt ? endAt.toISOString() : null]
+      );
 
-  UPDATE dbo.B30WalletAccounts
-  SET Balance = @BalanceAfter,
-      UpdatedAt = SYSUTCDATETIME()
-  WHERE UserId = @UserId;
+      const balanceAfter = toNumber(body.user && body.user.balance, 0);
+      await insertWalletTransaction(client, {
+        userId: user.userId,
+        type: 'subscription_credit',
+        amount,
+        balanceAfter,
+        paymentMethod: body.paymentMethod || 'card',
+        referenceType: 'subscription',
+        referenceId: planCode,
+        description: plan.name || planCode
+      });
 
-  INSERT INTO dbo.B30Subscriptions (UserId, PlanCode, PlanName, Amount, PaymentMethod, Status, StartAt, EndAt)
-  VALUES (@UserId, @PlanCode, @PlanName, @Amount, @PaymentMethod, N'active', @StartAt, @EndAt);
+      return { userId: user.userId, planCode, balanceAfter };
+    });
 
-  INSERT INTO dbo.B30WalletTransactions
-    (UserId, TransactionType, Amount, BalanceAfter, PaymentMethod, ReferenceType, ReferenceId, Description)
-  VALUES
-    (@UserId, N'subscription_credit', @Amount, @BalanceAfter, @PaymentMethod, N'subscription', CONVERT(NVARCHAR(80), SCOPE_IDENTITY()), @PlanName);
-END
-
-COMMIT;
-SELECT @UserId AS userId, @PlanCode AS planCode, @BalanceAfter AS balanceAfter
-FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-`;
-    const result = await runSql(script);
-    res.status(200).json({ ok: true, ...result });
+    return res.status(200).json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
