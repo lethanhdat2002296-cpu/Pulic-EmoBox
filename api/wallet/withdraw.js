@@ -1,49 +1,37 @@
-const { runSql, userPayloadSql, sqlString, sqlJson } = require('../../lib/db');
+const { getBody, insertWalletTransaction, setCors, toNumber, upsertUser, withClient } = require('../../lib/db');
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
+  setCors(res);
 
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
   try {
-    const body = req.body || {};
-    const amount = Math.abs(Number(body.amount || 0));
-    const signedAmount = -amount;
-    const paymentMethod = body.paymentMethod || 'bank_transfer';
-    const description = 'Rut tien vi EmoBox';
-    
-    const script = `
-SET NOCOUNT ON;
-BEGIN TRAN;
-${userPayloadSql(body.user)}
+    const body = getBody(req);
+    const amount = -Math.abs(toNumber(body.amount, 0));
 
-DECLARE @Amount DECIMAL(18,2) = ${Number.isFinite(signedAmount) ? signedAmount : 0};
-DECLARE @BalanceAfter DECIMAL(18,2) = COALESCE(TRY_CONVERT(DECIMAL(18,2), JSON_VALUE(@UserPayload, '$.balance')), 0);
+    const result = await withClient(async client => {
+      const user = await upsertUser(client, body.user);
+      const balanceAfter = toNumber(body.user && body.user.balance, 0);
 
-IF @UserId IS NOT NULL
-BEGIN
-  UPDATE dbo.B30WalletAccounts
-  SET Balance = @BalanceAfter,
-      UpdatedAt = SYSUTCDATETIME()
-  WHERE UserId = @UserId;
+      await insertWalletTransaction(client, {
+        userId: user.userId,
+        type: 'withdraw',
+        amount,
+        balanceAfter,
+        paymentMethod: body.paymentMethod || 'bank_transfer',
+        referenceType: 'wallet',
+        description: 'Rut tien vi EmoBox',
+        metadata: body.bankInfo || {}
+      });
 
-  INSERT INTO dbo.B30WalletTransactions
-    (UserId, TransactionType, Amount, BalanceAfter, PaymentMethod, ReferenceType, Description, Metadata)
-  VALUES
-    (@UserId, N'withdraw', @Amount, @BalanceAfter, ${sqlString(paymentMethod)}, N'wallet', ${sqlString(description)}, ${sqlJson(body.bankInfo || {})});
-END
+      return { userId: user.userId, balanceAfter };
+    });
 
-COMMIT;
-SELECT @UserId AS userId, @BalanceAfter AS balanceAfter
-FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-`;
-    const result = await runSql(script);
-    res.status(200).json({ ok: true, ...result });
+    return res.status(200).json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
