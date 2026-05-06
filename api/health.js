@@ -1,18 +1,20 @@
-const { runSql } = require('../../lib/db');
+const { query, setCors } = require('../lib/db');
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
+  setCors(res);
 
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
   try {
-    const result = await runSql('SET NOCOUNT ON; SELECT 1 AS ok, DB_NAME() AS databaseName FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;');
-    res.status(200).json({ ok: true, ...result });
+    const result = await query('SELECT 1 AS ok, current_database() AS database_name');
+    return res.status(200).json({
+      ok: true,
+      databaseName: result.rows[0].database_name
+    });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
