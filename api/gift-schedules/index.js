@@ -1,113 +1,114 @@
-const { runSql, userPayloadSql, sqlString, sqlJson } = require('../../lib/db');
+const {
+  getBody,
+  insertWalletTransaction,
+  setCors,
+  toNumber,
+  upsertUser,
+  withClient
+} = require('../../lib/db');
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
+  setCors(res);
 
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
   try {
-    const body = req.body || {};
+    const body = getBody(req);
     const eventData = body.event || {};
-    const amount = Number(eventData.priceNum || eventData.amount || 0);
-    const paid = eventData.paid ? 1 : 0;
-    
-    const script = `
-SET NOCOUNT ON;
-BEGIN TRAN;
-${userPayloadSql(body.user)}
+    const localEventId = eventData.id;
+    const amount = toNumber(eventData.priceNum || eventData.amount, 0);
+    const paid = Boolean(eventData.paid);
+    const paymentMethod = body.paymentMethod || 'bank';
 
-DECLARE @EventPayload NVARCHAR(MAX) = ${sqlJson(eventData)};
-DECLARE @LocalEventId NVARCHAR(80) = JSON_VALUE(@EventPayload, '$.id');
-DECLARE @RecipientId BIGINT = NULL;
-DECLARE @Amount DECIMAL(18,2) = ${Number.isFinite(amount) ? amount : 0};
-DECLARE @Paid BIT = ${paid};
-DECLARE @PaymentMethod NVARCHAR(30) = ${sqlString(body.paymentMethod || 'bank')};
-DECLARE @BalanceAfter DECIMAL(18,2) = COALESCE(TRY_CONVERT(DECIMAL(18,2), JSON_VALUE(@UserPayload, '$.balance')), 0);
+    const result = await withClient(async client => {
+      const user = await upsertUser(client, body.user);
+      if (!user.userId || !localEventId) {
+        return { userId: user.userId, localEventId: localEventId || null };
+      }
 
-IF @UserId IS NOT NULL AND @LocalEventId IS NOT NULL
-BEGIN
-  SELECT @RecipientId = RecipientId
-  FROM dbo.B20GiftRecipients
-  WHERE UserId = @UserId AND LocalEventId = @LocalEventId;
+      const recipientResult = await client.query(
+        `
+        INSERT INTO "B20GiftRecipients"
+          (user_id, local_event_id, full_name, phone, email, address)
+        VALUES
+          ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (user_id, local_event_id) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          phone = EXCLUDED.phone,
+          email = EXCLUDED.email,
+          address = EXCLUDED.address,
+          updated_at = NOW()
+        RETURNING recipient_id
+        `,
+        [
+          user.userId,
+          localEventId,
+          eventData.recipient || 'Nguoi nhan',
+          eventData.phone || '',
+          eventData.email || null,
+          eventData.address || ''
+        ]
+      );
 
-  IF @RecipientId IS NULL
-  BEGIN
-    INSERT INTO dbo.B20GiftRecipients (UserId, LocalEventId, FullName, Phone, Email, Address)
-    VALUES (
-      @UserId,
-      @LocalEventId,
-      COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.recipient'), N''), N'Nguoi nhan'),
-      COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.phone'), N''), N''),
-      NULLIF(JSON_VALUE(@EventPayload, '$.email'), N''),
-      COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.address'), N''), N'')
-    );
-    SET @RecipientId = SCOPE_IDENTITY();
-  END
-  ELSE
-  BEGIN
-    UPDATE dbo.B20GiftRecipients
-    SET FullName = COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.recipient'), N''), FullName),
-        Phone = COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.phone'), N''), Phone),
-        Email = NULLIF(JSON_VALUE(@EventPayload, '$.email'), N''),
-        Address = COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.address'), N''), Address),
-        UpdatedAt = SYSUTCDATETIME()
-    WHERE RecipientId = @RecipientId;
-  END
+      const recipientId = recipientResult.rows[0].recipient_id;
+      await client.query(
+        `
+        INSERT INTO "B30GiftSchedules"
+          (user_id, recipient_id, local_event_id, gift_date, group_code, category_code, tier_code, package_name, amount, paid, status, package_json, deleted_at)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NULL)
+        ON CONFLICT (user_id, local_event_id) DO UPDATE SET
+          recipient_id = EXCLUDED.recipient_id,
+          gift_date = EXCLUDED.gift_date,
+          group_code = EXCLUDED.group_code,
+          category_code = EXCLUDED.category_code,
+          tier_code = EXCLUDED.tier_code,
+          package_name = EXCLUDED.package_name,
+          amount = EXCLUDED.amount,
+          paid = EXCLUDED.paid,
+          status = EXCLUDED.status,
+          package_json = EXCLUDED.package_json,
+          deleted_at = NULL,
+          updated_at = NOW()
+        `,
+        [
+          user.userId,
+          recipientId,
+          localEventId,
+          eventData.date || new Date().toISOString().slice(0, 10),
+          eventData.group || null,
+          eventData.cat || null,
+          eventData.tier || null,
+          eventData.pkgName || 'Gift package',
+          amount,
+          paid,
+          paid ? 'paid' : 'pending',
+          JSON.stringify(eventData)
+        ]
+      );
 
-  IF EXISTS (SELECT 1 FROM dbo.B30GiftSchedules WHERE UserId = @UserId AND LocalEventId = @LocalEventId)
-  BEGIN
-    UPDATE dbo.B30GiftSchedules
-    SET RecipientId = @RecipientId,
-        GiftDate = TRY_CONVERT(DATE, JSON_VALUE(@EventPayload, '$.date')),
-        GroupCode = NULLIF(JSON_VALUE(@EventPayload, '$.group'), N''),
-        CategoryCode = NULLIF(JSON_VALUE(@EventPayload, '$.cat'), N''),
-        TierCode = NULLIF(JSON_VALUE(@EventPayload, '$.tier'), N''),
-        PackageName = COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.pkgName'), N''), N'Gift package'),
-        Amount = @Amount,
-        Paid = @Paid,
-        Status = CASE WHEN @Paid = 1 THEN N'paid' ELSE N'pending' END,
-        PackageJson = @EventPayload,
-        UpdatedAt = SYSUTCDATETIME(),
-        DeletedAt = NULL
-    WHERE UserId = @UserId AND LocalEventId = @LocalEventId;
-  END
-  ELSE
-  BEGIN
-    INSERT INTO dbo.B30GiftSchedules
-      (UserId, RecipientId, LocalEventId, GiftDate, GroupCode, CategoryCode, TierCode, PackageName, Amount, Paid, Status, PackageJson)
-    VALUES
-      (@UserId, @RecipientId, @LocalEventId, TRY_CONVERT(DATE, JSON_VALUE(@EventPayload, '$.date')),
-       NULLIF(JSON_VALUE(@EventPayload, '$.group'), N''), NULLIF(JSON_VALUE(@EventPayload, '$.cat'), N''),
-       NULLIF(JSON_VALUE(@EventPayload, '$.tier'), N''), COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.pkgName'), N''), N'Gift package'),
-       @Amount, @Paid, CASE WHEN @Paid = 1 THEN N'paid' ELSE N'pending' END, @EventPayload);
-  END
+      if (paid && paymentMethod === 'wallet') {
+        await insertWalletTransaction(client, {
+          userId: user.userId,
+          type: 'gift_schedule_payment',
+          amount: -amount,
+          balanceAfter: toNumber(body.user && body.user.balance, 0),
+          paymentMethod,
+          referenceType: 'gift_schedule',
+          referenceId: localEventId,
+          description: eventData.pkgName || 'Thanh toan lich tang qua',
+          metadata: eventData
+        });
+      }
 
-  IF @Paid = 1 AND @PaymentMethod = N'wallet'
-  BEGIN
-    UPDATE dbo.B30WalletAccounts
-    SET Balance = @BalanceAfter,
-        UpdatedAt = SYSUTCDATETIME()
-    WHERE UserId = @UserId;
+      return { userId: user.userId, localEventId };
+    });
 
-    INSERT INTO dbo.B30WalletTransactions
-      (UserId, TransactionType, Amount, BalanceAfter, PaymentMethod, ReferenceType, ReferenceId, Description, Metadata)
-    VALUES
-      (@UserId, N'gift_schedule_payment', -@Amount, @BalanceAfter, @PaymentMethod, N'gift_schedule', @LocalEventId,
-       COALESCE(NULLIF(JSON_VALUE(@EventPayload, '$.pkgName'), N''), N'Thanh toan lich tang qua'), @EventPayload);
-  END
-END
-
-COMMIT;
-SELECT @UserId AS userId, @LocalEventId AS localEventId
-FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-`;
-    const result = await runSql(script);
-    res.status(200).json({ ok: true, ...result });
+    return res.status(200).json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
