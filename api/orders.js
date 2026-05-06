@@ -7,6 +7,7 @@ const {
   upsertUser,
   withClient
 } = require('../lib/db');
+const { sendOrderEmails } = require('../lib/email');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -120,11 +121,33 @@ module.exports = async function handler(req, res) {
       return {
         orderId: savedOrder.order_id,
         orderCode: savedOrder.order_code,
-        paymentStatus: savedOrder.payment_status
+        paymentStatus: savedOrder.payment_status,
+        order: {
+          subtotal,
+          shippingFee,
+          total,
+          paymentMethod
+        },
+        contact,
+        items,
+        user: body.user || {}
       };
     });
 
-    return res.status(200).json({ ok: true, ...result });
+    let email = { sent: false, skipped: true };
+    try {
+      email = await sendOrderEmails(result);
+    } catch (err) {
+      email = { sent: false, skipped: false, error: err.message };
+    }
+
+    return res.status(200).json({
+      ok: true,
+      orderId: result.orderId,
+      orderCode: result.orderCode,
+      paymentStatus: result.paymentStatus,
+      email
+    });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }
