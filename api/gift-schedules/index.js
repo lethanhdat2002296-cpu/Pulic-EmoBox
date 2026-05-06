@@ -6,6 +6,7 @@ const {
   upsertUser,
   withClient
 } = require('../../lib/db');
+const { sendGiftScheduleEmail } = require('../../lib/email');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -26,7 +27,7 @@ module.exports = async function handler(req, res) {
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
       if (!user.userId || !localEventId) {
-        return { userId: user.userId, localEventId: localEventId || null };
+        return { userId: user.userId, localEventId: localEventId || null, created: false };
       }
 
       const recipientResult = await client.query(
@@ -54,6 +55,17 @@ module.exports = async function handler(req, res) {
       );
 
       const recipientId = recipientResult.rows[0].recipient_id;
+      const existingSchedule = await client.query(
+        `
+        SELECT schedule_id
+        FROM "B30GiftSchedules"
+        WHERE user_id = $1
+          AND local_event_id = $2
+          AND deleted_at IS NULL
+        `,
+        [user.userId, localEventId]
+      );
+
       await client.query(
         `
         INSERT INTO "B30GiftSchedules"
@@ -104,10 +116,23 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      return { userId: user.userId, localEventId };
+      return { userId: user.userId, localEventId, created: existingSchedule.rowCount === 0 };
     });
 
-    return res.status(200).json({ ok: true, ...result });
+    let email = { sent: false, skipped: true };
+    if (result.created) {
+      try {
+        email = await sendGiftScheduleEmail({
+          user: body.user || {},
+          event: eventData,
+          paymentMethod
+        });
+      } catch (err) {
+        email = { sent: false, skipped: false, error: err.message };
+      }
+    }
+
+    return res.status(200).json({ ok: true, ...result, notificationEmail: email });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }
