@@ -1,36 +1,35 @@
-const { runSql, userPayloadSql, sqlString } = require('../../lib/db');
+const { getBody, setCors, upsertUser, withClient } = require('../../lib/db');
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
+  setCors(res);
 
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
   try {
-    const body = req.body || {};
-    const script = `
-SET NOCOUNT ON;
-${userPayloadSql(body.user)}
+    const body = getBody(req);
+    const result = await withClient(async client => {
+      const user = await upsertUser(client, body.user);
+      if (user.userId && body.localEventId) {
+        await client.query(
+          `
+          UPDATE "B30GiftSchedules"
+          SET deleted_at = NOW(),
+              updated_at = NOW(),
+              status = 'deleted'
+          WHERE user_id = $1 AND local_event_id = $2
+          `,
+          [user.userId, body.localEventId]
+        );
+      }
 
-DECLARE @LocalEventId NVARCHAR(80) = ${sqlString(body.localEventId)};
-IF @UserId IS NOT NULL AND @LocalEventId IS NOT NULL
-BEGIN
-  UPDATE dbo.B30GiftSchedules
-  SET DeletedAt = SYSUTCDATETIME(),
-      UpdatedAt = SYSUTCDATETIME(),
-      Status = N'deleted'
-  WHERE UserId = @UserId AND LocalEventId = @LocalEventId;
-END
+      return { userId: user.userId, localEventId: body.localEventId || null };
+    });
 
-SELECT @UserId AS userId, @LocalEventId AS localEventId
-FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-`;
-    const result = await runSql(script);
-    res.status(200).json({ ok: true, ...result });
+    return res.status(200).json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
