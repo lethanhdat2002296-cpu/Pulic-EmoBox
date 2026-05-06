@@ -1,6 +1,7 @@
 .env.local
 .vercel/
 node_modules/
+.npm-cache/
 server.out.log
 server.err.log
 *.log
