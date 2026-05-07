@@ -31,10 +31,10 @@
     }
 
     try {
-      const response = await fetch(apiBase + path, {
+      const response = await fetch(apiBase + '/api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {})
+        body: JSON.stringify(Object.assign({ route: path }, payload || {}))
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
