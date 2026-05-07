@@ -166,6 +166,10 @@
         
         // Chỉ lưu vào localStorage khi đăng ký SQL thành công
         localStorage.setItem('emobox_user', JSON.stringify(user));
+         const emailResult = await EmoBoxApi.sendRegistrationEmail(user);
+        if (emailResult.error || (emailResult.email && emailResult.email.error)) {
+          console.warn('[EmoBox Email] Khong gui duoc email dang ky:', emailResult.error || emailResult.email.error);
+        }
         showToast('🎉 Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
         
         setTimeout(() => {
