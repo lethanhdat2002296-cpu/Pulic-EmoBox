@@ -436,7 +436,13 @@
 
     async function syncGiftSchedulesFromServer() {
       const user = getCurrentUser();
-      if (!user || !window.EmoBoxApi) return;
+      if (!user || !window.EmoBoxApi) {
+        renderMainCalendar();
+        return;
+      }
+
+      saveEvents([]);
+      renderMainCalendar();
 
       const result = await EmoBoxApi.listGiftSchedules(user);
       if (result.userId && !user.userId) {
@@ -446,6 +452,8 @@
       if (result.ok && Array.isArray(result.events)) {
         saveEvents(result.events);
         renderMainCalendar();
+      } else {
+        console.warn('[EmoBox Calendar] Khong tai duoc lich theo user:', result.error || result);
       }
     }
 
@@ -962,7 +970,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      renderMainCalendar();
       syncGiftSchedulesFromServer();
     });
   </script>
