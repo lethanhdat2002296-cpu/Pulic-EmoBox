@@ -1,5 +1,4 @@
 const { getBody, setCors } = require('../../lib/db');
-const { sendGiftScheduleEmail } = require('../../lib/email');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -11,6 +10,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = getBody(req);
+    const { sendGiftScheduleEmail } = require('../../lib/email');
     const email = await sendGiftScheduleEmail({
       user: body.user || {},
       event: body.event || {},
