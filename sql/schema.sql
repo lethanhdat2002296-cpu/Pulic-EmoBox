@@ -33,6 +33,19 @@ CREATE TABLE IF NOT EXISTS "B30WalletTransactions" (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS "B30BankCards" (
+  card_id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL UNIQUE REFERENCES "B20Users"(user_id) ON DELETE CASCADE,
+  cardholder_name TEXT NOT NULL,
+  card_number TEXT NOT NULL,
+  card_last4 TEXT NOT NULL,
+  expiry_month TEXT NOT NULL,
+  expiry_year TEXT NOT NULL,
+  card_brand TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS "B30Subscriptions" (
   subscription_id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES "B20Users"(user_id) ON DELETE CASCADE,
@@ -118,3 +131,15 @@ CREATE TABLE IF NOT EXISTS "B30GiftSchedules" (
   deleted_at TIMESTAMPTZ,
   UNIQUE (user_id, local_event_id)
 );
+
+ALTER TABLE IF EXISTS "B30GiftSchedules"
+  ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES "B20Users"(user_id) ON DELETE CASCADE;
+
+ALTER TABLE IF EXISTS "B30WalletTransactions"
+  ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES "B20Users"(user_id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS "IX_B30GiftSchedules_user_id"
+  ON "B30GiftSchedules" (user_id);
+
+CREATE INDEX IF NOT EXISTS "IX_B30WalletTransactions_user_id"
+  ON "B30WalletTransactions" (user_id);
