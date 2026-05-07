@@ -13,6 +13,7 @@
   function compactUser(user) {
     if (!user) return null;
     return {
+      userId: user.userId || user.user_id || null,
       name: user.name || user.fullName || 'Khach Hang',
       email: user.email || '',
       phone: user.phone || '',
@@ -83,10 +84,31 @@
         paymentMethod: paymentMethod || 'bank'
       });
     },
+    listGiftSchedules(user) {
+      return request('/api/gift-schedules/list', {
+        user: compactUser(user)
+      });
+    },
     deleteGiftSchedule(localEventId, user) {
       return request('/api/gift-schedules/delete', {
         user: compactUser(user),
         localEventId
+      });
+    },
+    getWalletHistory(user) {
+      return request('/api/wallet/history', {
+        user: compactUser(user)
+      });
+    },
+    getBankCard(user) {
+      return request('/api/bank-card/get', {
+        user: compactUser(user)
+      });
+    },
+    saveBankCard(user, card) {
+      return request('/api/bank-card/save', {
+        user: compactUser(user),
+        card
       });
     },
     sendRegistrationEmail(user) {
