@@ -892,7 +892,17 @@
         events.push(newEvent);
       }
       localStorage.setItem('emobox_events', JSON.stringify(events));
-      await EmoBoxApi.saveGiftSchedule(newEvent, currentUser, paymentMethod);
+
+       const scheduleResult = await EmoBoxApi.saveGiftSchedule(newEvent, currentUser, paymentMethod);
+      if (scheduleResult.error) {
+        showToast('Khong luu duoc lich tang qua: ' + scheduleResult.error);
+        return;
+      }
+
+      const emailResult = await EmoBoxApi.sendGiftScheduleEmail(newEvent, currentUser, paymentMethod);
+      if (emailResult.error || (emailResult.email && emailResult.email.error)) {
+        console.warn('[EmoBox Email] Khong gui duoc email dat lich:', emailResult.error || emailResult.email.error);
+      }
       
       closeEventModal();
       renderMainCalendar();
