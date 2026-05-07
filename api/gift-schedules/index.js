@@ -6,7 +6,6 @@ const {
   upsertUser,
   withClient
 } = require('../../lib/db');
-const { sendGiftScheduleEmail } = require('../../lib/email');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -119,18 +118,7 @@ module.exports = async function handler(req, res) {
       return { userId: user.userId, localEventId, created: existingSchedule.rowCount === 0 };
     });
 
-    let email = { sent: false, skipped: true };
-    try {
-      email = await sendGiftScheduleEmail({
-        user: body.user || {},
-        event: eventData,
-        paymentMethod
-      });
-    } catch (err) {
-      email = { sent: false, skipped: false, error: err.message };
-    }
-
-    return res.status(200).json({ ok: true, ...result, notificationEmail: email });
+    return res.status(200).json({ ok: true, ...result });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }
