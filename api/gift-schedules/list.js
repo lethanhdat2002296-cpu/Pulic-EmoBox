@@ -1,4 +1,4 @@
-const { getBody, setCors, upsertUser, withClient } = require('../../lib/db');
+const { getBody, resolveUser, setCors, withClient } = require('../../lib/db');
 
 function dateOnly(value) {
   if (!value) return '';
@@ -38,7 +38,7 @@ module.exports = async function handler(req, res) {
   try {
     const body = getBody(req);
     const result = await withClient(async client => {
-      const user = await upsertUser(client, body.user);
+      const user = await resolveUser(client, body.user);
       if (!user.userId) return { userId: null, events: [] };
 
       const schedules = await client.query(
