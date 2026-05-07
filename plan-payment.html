@@ -70,6 +70,7 @@
                 <input type="text" id="bankCardCvc" class="form-input" placeholder="CVC" style="width: 80px;" pattern="^[0-9]{3,4}$" title="Mã bảo mật gồm 3 hoặc 4 chữ số">
               </div>
               <input type="text" id="bankCardName" class="form-input" placeholder="Tên in trên thẻ" style="margin-bottom: 0;" pattern="^[a-zA-Z\s]+$" title="Tên in trên thẻ không dấu">
+              <div id="savedCardHint" style="display: none; color: #059669; font-size: 0.78rem; font-weight: 600; margin-top: 0.5rem;">Đã tự điền thẻ đã lưu.</div>
             </div>
           </div>
         </label>
@@ -96,6 +97,25 @@
     
     let user = JSON.parse(localStorage.getItem('emobox_user'));
     let pending = user ? user.pendingPlan : null;
+
+    function formatCardNumber(value) {
+      return String(value || '').replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim();
+    }
+
+    async function loadSavedBankCard() {
+      if (!user || !window.EmoBoxApi) return;
+      const result = await EmoBoxApi.getBankCard(user);
+      if (!result.ok || !result.card) return;
+
+      if (result.userId && !user.userId) {
+        user.userId = result.userId;
+        localStorage.setItem('emobox_user', JSON.stringify(user));
+      }
+      document.getElementById('bankCardNum').value = formatCardNumber(result.card.cardNumber);
+      document.getElementById('bankCardExp').value = result.card.expiry || '';
+      document.getElementById('bankCardName').value = result.card.holderName || '';
+      document.getElementById('savedCardHint').style.display = 'block';
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       if (!user || !pending || pending === 'none' || !planDetails[pending]) {
@@ -126,6 +146,7 @@
           <span>${formatPrice(newBalance)}</span>
         </div>
       `;
+      loadSavedBankCard();
     });
 
     function selectPayment(labelEl) {
@@ -148,6 +169,15 @@
       }
       
       const plan = planDetails[pending];
+      const bankCardResult = await EmoBoxApi.saveBankCard(user, {
+        cardNumber: cardNum.value,
+        expiry: cardExp.value,
+        holderName: cardName.value
+      });
+      if (bankCardResult.error) {
+        showToast('Khong luu duoc the ngan hang: ' + bankCardResult.error);
+        return;
+      }
       
       // Update user details
       user.plan = pending;
