@@ -89,6 +89,18 @@
         localEventId
       });
     },
+    sendRegistrationEmail(user) {
+      return request('/api/email/registration', {
+        user: compactUser(user)
+      });
+    },
+    sendGiftScheduleEmail(eventData, user, paymentMethod) {
+      return request('/api/email/gift-schedule', {
+        user: compactUser(user),
+        event: eventData,
+        paymentMethod: paymentMethod || 'bank'
+      });
+    },
     saveOrder(order, user) {
       return request('/api/orders', {
         user: compactUser(user),
