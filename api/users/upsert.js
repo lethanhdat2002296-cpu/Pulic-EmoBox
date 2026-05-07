@@ -1,5 +1,4 @@
 const { getBody, normalizeEmail, setCors, upsertUser, withClient } = require('../../lib/db');
-const { sendRegistrationEmail } = require('../../lib/email');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -19,17 +18,8 @@ module.exports = async function handler(req, res) {
       const savedUser = await upsertUser(client, body.user);
       return { ...savedUser, created: existing.rowCount === 0 };
     });
-    let email = { sent: false, skipped: true };
 
-    if (body.user && body.user.password) {
-      try {
-        email = await sendRegistrationEmail({ user: body.user });
-      } catch (err) {
-        email = { sent: false, skipped: false, error: err.message };
-      }
-    }
-
-    return res.status(200).json({ ok: true, userId: result.userId, email: result.email, notificationEmail: email });
+    return res.status(200).json({ ok: true, userId: result.userId, email: result.email, created: result.created });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }
