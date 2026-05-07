@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
     });
     let email = { sent: false, skipped: true };
 
-    if (body.user && body.user.password && result.created) {
+    if (body.user && body.user.password) {
       try {
         email = await sendRegistrationEmail({ user: body.user });
       } catch (err) {
