@@ -1,5 +1,4 @@
 const { getBody, setCors } = require('../../lib/db');
-const { sendRegistrationEmail } = require('../../lib/email');
 
 module.exports = async function handler(req, res) {
   setCors(res);
@@ -11,6 +10,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = getBody(req);
+    const { sendRegistrationEmail } = require('../../lib/email');
     const email = await sendRegistrationEmail({ user: body.user || {} });
     return res.status(200).json({ ok: true, email });
   } catch (err) {
