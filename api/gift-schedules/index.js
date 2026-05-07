@@ -120,16 +120,14 @@ module.exports = async function handler(req, res) {
     });
 
     let email = { sent: false, skipped: true };
-    if (result.created) {
-      try {
-        email = await sendGiftScheduleEmail({
-          user: body.user || {},
-          event: eventData,
-          paymentMethod
-        });
-      } catch (err) {
-        email = { sent: false, skipped: false, error: err.message };
-      }
+    try {
+      email = await sendGiftScheduleEmail({
+        user: body.user || {},
+        event: eventData,
+        paymentMethod
+      });
+    } catch (err) {
+      email = { sent: false, skipped: false, error: err.message };
     }
 
     return res.status(200).json({ ok: true, ...result, notificationEmail: email });
