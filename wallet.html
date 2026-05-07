@@ -244,10 +244,65 @@
   <script>
     let currentDepositAmount = 500000;
 
-    function initWallet() {
-      const user = JSON.parse(localStorage.getItem('emobox_user'));
-      if (user) {
-        document.getElementById('balanceDisplay').textContent = formatPrice(user.balance || 2450000);
+    function transactionTitle(tx) {
+      const labels = {
+        deposit: 'Nạp tiền vào ví EmoBox',
+        withdraw: 'Rút tiền khỏi ví EmoBox',
+        order_payment: 'Thanh toán đơn hàng',
+        gift_schedule_payment: 'Thanh toán lịch tặng quà'
+      };
+      return tx.description || labels[tx.type] || 'Giao dịch ví EmoBox';
+    }
+
+    function renderTransactions(transactions) {
+      const list = document.getElementById('transactionList');
+      if (!transactions || transactions.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">Chưa có giao dịch nào.</p>';
+        return;
+      }
+
+      list.innerHTML = transactions.map(tx => {
+        const amount = Number(tx.amount || 0);
+        const isIn = amount >= 0;
+        const date = tx.createdAt ? new Date(tx.createdAt) : new Date();
+        const dateText = date.toLocaleString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return `
+          <div class="transaction">
+            <div class="tx-icon ${isIn ? 'icon-in' : 'icon-out'}">${isIn ? '↓' : '↑'}</div>
+            <div class="tx-info">
+              <h5>${transactionTitle(tx)}</h5>
+              <p>${dateText}</p>
+            </div>
+            <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '-'} ${formatPrice(Math.abs(amount))}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function initWallet() {
+      const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
+      if (!user) {
+        document.getElementById('balanceDisplay').textContent = formatPrice(0);
+        renderTransactions([]);
+        return;
+      }
+
+      document.getElementById('balanceDisplay').textContent = formatPrice(user.balance || 0);
+
+      const result = await EmoBoxApi.getWalletHistory(user);
+      if (result.ok) {
+        user.userId = result.userId || user.userId;
+        user.balance = result.balance;
+        localStorage.setItem('emobox_user', JSON.stringify(user));
+        document.getElementById('balanceDisplay').textContent = formatPrice(result.balance || 0);
+        renderTransactions(result.transactions || []);
       }
     }
 
@@ -273,9 +328,14 @@
       const user = JSON.parse(localStorage.getItem('emobox_user'));
       user.balance = (user.balance || 0) + finalAmt;
       localStorage.setItem('emobox_user', JSON.stringify(user));
-      await EmoBoxApi.recordWalletDeposit(user, finalAmt);
+      const result = await EmoBoxApi.recordWalletDeposit(user, finalAmt);
+      if (result.ok) {
+        user.userId = result.userId || user.userId;
+        user.balance = result.balanceAfter;
+        localStorage.setItem('emobox_user', JSON.stringify(user));
+      }
       
-      initWallet();
+      await initWallet();
       closeDepositModal();
       showToast(`🎉 Đã nạp thành công ${formatPrice(finalAmt)} vào ví!`);
     }
