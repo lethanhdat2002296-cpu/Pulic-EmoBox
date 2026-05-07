@@ -128,6 +128,8 @@
       </div>
       
       <div id="transactionList">
+        <p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">Dang tai lich su giao dich...</p>
+        <template>
         <div class="transaction">
           <div class="tx-icon icon-in">↓</div>
           <div class="tx-info">
@@ -152,6 +154,7 @@
           </div>
           <div class="tx-amount out">- 199.000 đ</div>
         </div>
+        </template>
       </div>
     </div>
   </main>
@@ -294,7 +297,8 @@
         return;
       }
 
-      document.getElementById('balanceDisplay').textContent = formatPrice(user.balance || 0);
+      document.getElementById('balanceDisplay').textContent = formatPrice(0);
+      renderTransactions([]);
 
       const result = await EmoBoxApi.getWalletHistory(user);
       if (result.ok) {
@@ -303,6 +307,8 @@
         localStorage.setItem('emobox_user', JSON.stringify(user));
         document.getElementById('balanceDisplay').textContent = formatPrice(result.balance || 0);
         renderTransactions(result.transactions || []);
+      } else {
+        console.warn('[EmoBox Wallet] Khong tai duoc lich su giao dich:', result.error || result);
       }
     }
 
