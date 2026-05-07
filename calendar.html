@@ -416,13 +416,37 @@
       }
     };
 
+    function getCurrentUser() {
+      return JSON.parse(localStorage.getItem('emobox_user') || 'null');
+    }
+
+    function userScopedKey(base) {
+      const user = getCurrentUser();
+      const id = user && (user.userId || user.email);
+      return id ? `${base}_${id}` : `${base}_guest`;
+    }
+
     function loadEvents() {
-      let events = JSON.parse(localStorage.getItem('emobox_events'));
-      if (!events) {
-        events = DEFAULT_EVENTS;
-        localStorage.setItem('emobox_events', JSON.stringify(events));
+      return JSON.parse(localStorage.getItem(userScopedKey('emobox_events')) || '[]');
+    }
+
+    function saveEvents(events) {
+      localStorage.setItem(userScopedKey('emobox_events'), JSON.stringify(events));
+    }
+
+    async function syncGiftSchedulesFromServer() {
+      const user = getCurrentUser();
+      if (!user || !window.EmoBoxApi) return;
+
+      const result = await EmoBoxApi.listGiftSchedules(user);
+      if (result.userId && !user.userId) {
+        user.userId = result.userId;
+        localStorage.setItem('emobox_user', JSON.stringify(user));
       }
-      return events;
+      if (result.ok && Array.isArray(result.events)) {
+        saveEvents(result.events);
+        renderMainCalendar();
+      }
     }
 
     /* MAIN CALENDAR LOGIC */
@@ -751,7 +775,7 @@
       
       let events = loadEvents();
       events = events.filter(e => e.id !== currentEditingEventId);
-      localStorage.setItem('emobox_events', JSON.stringify(events));
+      saveEvents(events);
       
       // Remove from cart if it exists
       let cartData = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
@@ -891,12 +915,20 @@
       } else {
         events.push(newEvent);
       }
-      localStorage.setItem('emobox_events', JSON.stringify(events));
-
-       const scheduleResult = await EmoBoxApi.saveGiftSchedule(newEvent, currentUser, paymentMethod);
+      saveEvents(events);
+      const scheduleResult = await EmoBoxApi.saveGiftSchedule(newEvent, currentUser, paymentMethod);
       if (scheduleResult.error) {
         showToast('Khong luu duoc lich tang qua: ' + scheduleResult.error);
         return;
+      }
+      if (scheduleResult.userId && !currentUser.userId) {
+        currentUser.userId = scheduleResult.userId;
+        localStorage.setItem('emobox_user', JSON.stringify(currentUser));
+        const scopedEvents = loadEvents();
+        if (!scopedEvents.some(evt => evt.id === newEvent.id)) {
+          scopedEvents.push(newEvent);
+          saveEvents(scopedEvents);
+        }
       }
 
       const emailResult = await EmoBoxApi.sendGiftScheduleEmail(newEvent, currentUser, paymentMethod);
@@ -931,6 +963,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       renderMainCalendar();
+      syncGiftSchedulesFromServer();
     });
   </script>
 </body>
