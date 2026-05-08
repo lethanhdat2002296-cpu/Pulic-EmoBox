@@ -128,6 +128,33 @@
         user: compactUser(user),
         order
       });
+    },
+    listOrders(user) {
+      return request('/api/orders/history', {
+        user: compactUser(user)
+      });
+    },
+    trackOrder(orderCode, email, phone) {
+      return request('/api/orders/track', {
+        orderCode,
+        email: email || '',
+        phone: phone || ''
+      });
+    },
+    confirmBankTransfer(orderCode, payload) {
+      return request('/api/orders/confirm-bank-transfer', Object.assign({
+        orderCode
+      }, payload || {}));
+    },
+    sendContactMessage(message) {
+      return request('/api/contact', {
+        message
+      });
+    },
+    listRecipients(user) {
+      return request('/api/recipients/list', {
+        user: compactUser(user)
+      });
     }
   };
 })();
