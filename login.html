@@ -58,6 +58,29 @@
       <div class="auth-footer">
         Bạn chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
       </div>
+
+      <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border);">
+        <a href="admin-login.html" id="adminLoginBtn" style="
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.5rem 1.25rem;
+          border: 1px solid #cbd5e1;
+          border-radius: 999px;
+          background: #f8fafc;
+          color: #64748b;
+          font-size: 0.78rem;
+          font-weight: 600;
+          text-decoration: none;
+          transition: all 0.2s;
+          letter-spacing: 0.03em;
+        "
+        onmouseover="this.style.background='#e2e8f0'; this.style.color='#0f172a'; this.style.borderColor='#94a3b8';"
+        onmouseout="this.style.background='#f8fafc'; this.style.color='#64748b'; this.style.borderColor='#cbd5e1';"
+        >
+          🔐 Đăng nhập Admin
+        </a>
+      </div>
     </div>
   </div>
 
@@ -88,6 +111,7 @@
           finishLogin(user);
         } else {
           const user = {
+            userId: response.userId || null,
             name: response.name || 'Khách Hàng',
             email: response.email,
             phone: response.phone || '',
