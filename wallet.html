@@ -175,6 +175,12 @@
         <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">Hoặc nhập số khác</label>
         <input type="number" id="customDeposit" class="btn" style="width: 100%; border: 1px solid var(--border); text-align: left; padding-left: 1rem; color: var(--text-main);" placeholder="Số tiền (VNĐ)">
       </div>
+
+      <div style="margin-bottom: 1.5rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:14px; padding:1rem; color:#075985; font-size:0.85rem; line-height:1.45;">
+        Số dư chỉ được cộng sau khi EmoBox đối soát chuyển khoản. Nhập mã giao dịch hoặc tải biên lai để gửi yêu cầu nạp ví.
+      </div>
+      <input type="text" id="depositReference" class="btn" style="width:100%; border:1px solid var(--border); text-align:left; padding-left:1rem; color:var(--text-main); margin-bottom:0.75rem;" placeholder="Mã giao dịch / nội dung chuyển khoản">
+      <input type="file" id="depositProofFile" class="btn" style="width:100%; border:1px solid var(--border); text-align:left; padding-left:1rem; color:var(--text-main); margin-bottom:1rem;" accept="image/*,.pdf">
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
         <button class="btn btn-ghost" onclick="closeDepositModal()">Hủy</button>
@@ -250,6 +256,7 @@
     function transactionTitle(tx) {
       const labels = {
         deposit: 'Nạp tiền vào ví EmoBox',
+        deposit_request: 'Yêu cầu nạp tiền vào ví EmoBox',
         withdraw: 'Rút tiền khỏi ví EmoBox',
         order_payment: 'Thanh toán đơn hàng',
         gift_schedule_payment: 'Thanh toán lịch tặng quà',
@@ -282,7 +289,8 @@
             <div class="tx-icon ${isIn ? 'icon-in' : 'icon-out'}">${isIn ? '↓' : '↑'}</div>
             <div class="tx-info">
               <h5>${transactionTitle(tx)}</h5>
-              <p>${dateText}</p>
+              <p>${dateText}${tx.status && tx.status !== 'completed' ? ` • ${tx.status === 'pending_review' ? 'Chờ đối soát' : tx.status}` : ''}</p>
+              ${tx.referenceId ? `<p>Mã yêu cầu: ${tx.referenceId}</p>` : ''}
             </div>
             <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '-'} ${formatPrice(Math.abs(amount))}</div>
           </div>
@@ -331,20 +339,52 @@
     async function confirmDeposit() {
       const custom = document.getElementById('customDeposit').value;
       const finalAmt = custom ? parseInt(custom) : currentDepositAmount;
+      if (!finalAmt || finalAmt <= 0) {
+        showToast('Vui lòng nhập số tiền nạp hợp lệ.');
+        return;
+      }
       
       const user = JSON.parse(localStorage.getItem('emobox_user'));
-      user.balance = (user.balance || 0) + finalAmt;
-      localStorage.setItem('emobox_user', JSON.stringify(user));
-      const result = await EmoBoxApi.recordWalletDeposit(user, finalAmt);
+      if (!user) {
+        showToast('Vui lòng đăng nhập để nạp ví.');
+        return;
+      }
+
+      const proofFile = document.getElementById('depositProofFile').files[0];
+      let paymentProofUrl = '';
+      if (proofFile) {
+        if (proofFile.size > 900 * 1024) {
+          showToast('Biên lai tối đa 900KB. Vui lòng nén ảnh trước khi gửi.');
+          return;
+        }
+        paymentProofUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result || '');
+          reader.onerror = () => reject(new Error('Không đọc được file biên lai.'));
+          reader.readAsDataURL(proofFile);
+        }).catch(err => {
+          showToast(err.message);
+          return '';
+        });
+      }
+
+      const result = await EmoBoxApi.recordWalletDeposit(user, finalAmt, {
+        paymentReference: document.getElementById('depositReference').value.trim(),
+        paymentProofUrl,
+        bankTransferNote: proofFile ? `Khách tải biên lai: ${proofFile.name}` : ''
+      });
       if (result.ok) {
         user.userId = result.userId || user.userId;
         user.balance = result.balanceAfter;
         localStorage.setItem('emobox_user', JSON.stringify(user));
+      } else {
+        showToast(result.error || 'Không gửi được yêu cầu nạp ví.');
+        return;
       }
       
       await initWallet();
       closeDepositModal();
-      showToast(`🎉 Đã nạp thành công ${formatPrice(finalAmt)} vào ví!`);
+      showToast(`Đã gửi yêu cầu nạp ${formatPrice(finalAmt)}. Mã yêu cầu: ${result.requestCode}`);
     }
 
     document.addEventListener('DOMContentLoaded', initWallet);
