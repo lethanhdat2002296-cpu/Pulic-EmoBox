@@ -406,6 +406,18 @@
         // Normal items only: show COD
         if (codLabel) codLabel.style.display = '';
       }
+
+      const preferredPayment = localStorage.getItem('emobox_checkout_payment_method');
+      if (preferredPayment) {
+        const preferredRadio = document.querySelector(`input[name="payment"][value="${preferredPayment}"]`);
+        const preferredLabel = preferredRadio ? preferredRadio.closest('.payment-opt') : null;
+        if (preferredRadio && preferredLabel && preferredLabel.style.display !== 'none') {
+          document.querySelectorAll('.payment-opt').forEach(opt => opt.classList.remove('active'));
+          preferredRadio.checked = true;
+          preferredLabel.classList.add('active');
+        }
+        localStorage.removeItem('emobox_checkout_payment_method');
+      }
       
       if (hasScheduledEvt) {
         if (addresses.size > 1) {
