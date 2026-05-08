@@ -44,7 +44,7 @@
   <script src="data.js"></script><script src="api.js"></script><script src="app.js"></script>
   <script>
     function statusLabel(value) {
-      const map = { paid: 'Đã thanh toán', pending: 'Chờ thanh toán', pending_review: 'Chờ đối soát', cod: 'COD', processing: 'Đang xử lý', delivered: 'Đã giao' };
+      const map = { paid: 'Đã thanh toán', pending: 'Chờ thanh toán', awaiting_transfer: 'Chờ chuyển khoản', pending_review: 'Chờ đối soát', cod: 'COD', processing: 'Đang xử lý', delivered: 'Đã giao' };
       return map[value] || value || 'Chưa rõ';
     }
 
