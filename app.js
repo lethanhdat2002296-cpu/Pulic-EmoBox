@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     userMenuBody.insertBefore(authLink, userMenuBody.firstChild);
     ensureUserMenuLink(userMenuBody, 'order-history.html', '📜 Lịch sử đơn hàng');
     ensureUserMenuLink(userMenuBody, 'track-order.html', '🔎 Theo dõi đơn hàng');
+    ensureUserMenuLink(userMenuBody, 'payment-review.html', 'Doi soat thanh toan');
   }
 
   if (currentUser) {
