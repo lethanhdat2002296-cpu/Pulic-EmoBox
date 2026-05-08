@@ -190,20 +190,24 @@
           </div>
           <div class="form-group">
             <label class="form-label">Người nhận</label>
-            <input type="text" class="form-input" id="eventRecipient" placeholder="Nhập tên người nhận" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
+            <input type="text" class="form-input" id="eventRecipient" placeholder="Nhập tên người nhận" list="giftRecipientNames" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
           </div>
           <div class="form-group">
             <label class="form-label">Địa chỉ giao hàng</label>
-            <input type="text" class="form-input" id="eventAddress" placeholder="Nhập địa chỉ giao hàng" required minlength="5">
+            <input type="text" class="form-input" id="eventAddress" placeholder="Nhập địa chỉ giao hàng" list="giftRecipientAddresses" required minlength="5">
           </div>
           <div class="form-group">
             <label class="form-label">Số điện thoại</label>
-            <input type="tel" class="form-input" id="eventPhone" placeholder="Nhập số điện thoại (10 số)" required pattern="^0[0-9]{9}$" title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0">
+            <input type="tel" class="form-input" id="eventPhone" placeholder="Nhập số điện thoại (10 số)" list="giftRecipientPhones" required pattern="^0[0-9]{9}$" title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0">
           </div>
           <div class="form-group">
             <label class="form-label">Email</label>
-            <input type="email" class="form-input" id="eventEmail" placeholder="Nhập email" required>
+            <input type="email" class="form-input" id="eventEmail" placeholder="Nhập email" list="giftRecipientEmails" required>
           </div>
+          <datalist id="giftRecipientNames"></datalist>
+          <datalist id="giftRecipientPhones"></datalist>
+          <datalist id="giftRecipientEmails"></datalist>
+          <datalist id="giftRecipientAddresses"></datalist>
           
           <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border);">
           <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">Cấu hình Gói Quà</h4>
@@ -242,10 +246,13 @@
             <div id="walletWarning" style="color: #ef4444; font-size: 0.85rem; font-weight: 600; display: none; margin-top: 0.4rem;">
               ⚠ Số dư ví không đủ để thanh toán. Vui lòng nạp thêm tiền hoặc đổi phương thức.
             </div>
+            <div style="margin-top: 0.65rem; background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; border-radius: 12px; padding: 0.85rem; font-size: 0.84rem; line-height: 1.5;">
+              Quy tắc hủy/hoàn ví: lịch chỉ được hủy trước ngày giao tối thiểu 5 ngày. Nếu đã thanh toán bằng Ví EmoBox và hủy hợp lệ, tiền sẽ được hoàn về ví và lưu trong lịch sử giao dịch.
+            </div>
           </div>
 
           <div class="form-group" id="eventImageContainer" style="display: none; text-align: center; margin-top: 1rem;">
-            <img id="eventImage" src="" style="width: 100%; max-height: 250px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05); object-fit: contain; background: #f8fafc;">
+            <img id="eventImage" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" style="width: 100%; max-height: 250px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05); object-fit: contain; background: #f8fafc;">
           </div>
 
           <div class="form-group">
@@ -281,8 +288,8 @@
         <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
         <div class="footer-socials">
           <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
-          <a href="#" class="social-btn">in</a>
-          <a href="#" class="social-btn">ig</a>
+          <a href="https://www.linkedin.com/company/emobox/" class="social-btn" target="_blank" rel="noopener noreferrer">in</a>
+          <a href="https://www.instagram.com/emobox.vn/" class="social-btn" target="_blank" rel="noopener noreferrer">ig</a>
         </div>
         <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
           <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
@@ -308,17 +315,17 @@
       <div class="footer-col">
         <h4>Hỗ trợ</h4>
         <ul>
-          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
-          <li><a href="#">Vận chuyển & Đổi trả</a></li>
+          <li><a href="faq.html">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="shipping-returns.html">Vận chuyển & Đổi trả</a></li>
           <li><a href="contact.html">Liên hệ</a></li>
-          <li><a href="#">Theo dõi Đơn hàng</a></li>
+          <li><a href="track-order.html">Theo dõi Đơn hàng</a></li>
         </ul>
       </div>
       <div class="footer-col">
         <h4>Chính sách</h4>
         <ul>
-          <li><a href="#">Chính sách Bảo mật</a></li>
-          <li><a href="#">Điều khoản Dịch vụ</a></li>
+          <li><a href="privacy.html">Chính sách Bảo mật</a></li>
+          <li><a href="terms.html">Điều khoản Dịch vụ</a></li>
         </ul>
       </div>
     </div>
@@ -554,6 +561,46 @@
     /* FORM MODAL LOGIC */
     let eventCurrentPkg = null;
     let eventSelectedPicks = [];
+    let giftSavedRecipients = [];
+
+    async function loadGiftSavedRecipients() {
+      const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
+      if (!user || !window.EmoBoxApi) return;
+      const result = await EmoBoxApi.listRecipients(user);
+      if (!result.ok || !Array.isArray(result.recipients)) return;
+      giftSavedRecipients = result.recipients;
+
+      const fields = {
+        giftRecipientNames: 'name',
+        giftRecipientPhones: 'phone',
+        giftRecipientEmails: 'email',
+        giftRecipientAddresses: 'address'
+      };
+      Object.entries(fields).forEach(([id, key]) => {
+        const list = document.getElementById(id);
+        if (!list) return;
+        list.innerHTML = giftSavedRecipients
+          .map(recipient => recipient[key])
+          .filter(Boolean)
+          .map(value => `<option value="${String(value).replace(/"/g, '&quot;')}"></option>`)
+          .join('');
+      });
+    }
+
+    function applyGiftSavedRecipient(value) {
+      const text = String(value || '').trim().toLowerCase();
+      if (!text) return;
+      const recipient = giftSavedRecipients.find(item =>
+        [item.name, item.phone, item.email, item.address]
+          .filter(Boolean)
+          .some(field => String(field).trim().toLowerCase() === text)
+      );
+      if (!recipient) return;
+      document.getElementById('eventRecipient').value = recipient.name || '';
+      document.getElementById('eventPhone').value = recipient.phone || '';
+      document.getElementById('eventEmail').value = recipient.email || '';
+      document.getElementById('eventAddress').value = recipient.address || '';
+    }
 
     function handleEventPkgChange() {
       const cat = document.getElementById('eventCat').value;
@@ -933,6 +980,9 @@
       let events = loadEvents();
       const isEditingEvent = Boolean(currentEditingEventId);
       const existingEvent = isEditingEvent ? events.find(e => e.id === currentEditingEventId) : null;
+      let walletBalanceAfter = null;
+      let pendingCartItem = null;
+      let pendingCartIndex = -1;
 
       const newEvent = {
         id: isEditingEvent ? currentEditingEventId : 'evt_' + Date.now(),
@@ -960,14 +1010,13 @@
           showToast('Số dư ví không đủ!');
           return;
         }
-        currentUser.balance = currentBalance - pkg.priceNum;
-        localStorage.setItem('emobox_user', JSON.stringify(currentUser));
+        walletBalanceAfter = currentBalance - pkg.priceNum;
         newEvent.paid = true;
       } else if (!newEvent.paid) {
         // Redirect to cart or add to cart
         // Check if already in cart
-        const cartIndex = cart.findIndex(item => item.id === newEvent.id);
-        const cartItem = {
+        pendingCartIndex = cart.findIndex(item => item.id === newEvent.id);
+        pendingCartItem = {
           id: newEvent.id,
           isPkg: true,
           name: newEvent.pkgName,
@@ -977,19 +1026,11 @@
           fixedItems: newEvent.fixedItems,
           selectedPicks: newEvent.selectedPicks,
           quantity: 1,
+          scheduleCode: newEvent.id,
           recipient: newEvent.recipient,
           address: newEvent.address,
           phone: newEvent.phone
         };
-        
-        if (cartIndex > -1) {
-          cart[cartIndex] = cartItem;
-        } else {
-          cart.push(cartItem);
-        }
-        
-        localStorage.setItem('emobox_cart', JSON.stringify(cart));
-        updateCartBadge();
       }
 
       if (isEditingEvent) {
@@ -998,7 +1039,6 @@
       } else {
         events.push(newEvent);
       }
-      saveEvents(events);
       const scheduleResult = await EmoBoxApi.saveGiftSchedule(newEvent, currentUser, paymentMethod);
       if (scheduleResult.error) {
         showToast('Khong luu duoc lich tang qua: ' + scheduleResult.error);
@@ -1007,11 +1047,22 @@
       if (scheduleResult.userId && !currentUser.userId) {
         currentUser.userId = scheduleResult.userId;
         localStorage.setItem('emobox_user', JSON.stringify(currentUser));
-        const scopedEvents = loadEvents();
-        if (!scopedEvents.some(evt => evt.id === newEvent.id)) {
-          scopedEvents.push(newEvent);
-          saveEvents(scopedEvents);
+      }
+      if (walletBalanceAfter !== null) {
+        currentUser.balance = scheduleResult.balanceAfter !== null && scheduleResult.balanceAfter !== undefined
+          ? Number(scheduleResult.balanceAfter)
+          : walletBalanceAfter;
+        localStorage.setItem('emobox_user', JSON.stringify(currentUser));
+      }
+      saveEvents(events);
+      if (pendingCartItem) {
+        if (pendingCartIndex > -1) {
+          cart[pendingCartIndex] = pendingCartItem;
+        } else {
+          cart.push(pendingCartItem);
         }
+        localStorage.setItem('emobox_cart', JSON.stringify(cart));
+        updateCartBadge();
       }
 
       const emailResult = await EmoBoxApi.sendGiftScheduleEmail(newEvent, currentUser, paymentMethod);
@@ -1033,6 +1084,7 @@
           fixedItems: newEvent.fixedItems,
           selectedPicks: newEvent.selectedPicks,
           quantity: 1,
+          scheduleCode: newEvent.id,
           recipient: newEvent.recipient,
           address: newEvent.address,
           phone: newEvent.phone
@@ -1041,11 +1093,16 @@
         localStorage.setItem('emobox_checkout_payment_method', paymentMethod);
         window.location.href = 'checkout.html';
       } else {
-        showToast(currentEditingEventId ? '📅 Đã cập nhật lịch tặng quà!' : '📅 Đã lưu lịch tặng quà thành công!');
+        showToast(currentEditingEventId ? `📅 Đã cập nhật lịch tặng quà! Mã lịch: ${newEvent.id}` : `📅 Đã lưu lịch tặng quà thành công! Mã lịch: ${newEvent.id}`);
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      loadGiftSavedRecipients();
+      ['eventRecipient', 'eventPhone', 'eventEmail', 'eventAddress'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.addEventListener('change', () => applyGiftSavedRecipient(input.value));
+      });
       syncGiftSchedulesFromServer();
     });
   </script>
