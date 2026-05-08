@@ -41,11 +41,15 @@
     const lastOrder = JSON.parse(localStorage.getItem('emobox_last_order') || '{}');
     const code = params.get('code') || lastOrder.orderCode || '';
     document.getElementById('orderCode').textContent = code || 'Chưa có mã đơn';
-    document.getElementById('paymentStatus').textContent = lastOrder.paymentStatus === 'pending'
-      ? 'Trạng thái: Chờ thanh toán/đối soát'
-      : 'Trạng thái: Đã thanh toán hoặc đang xử lý';
+    const statusMap = {
+      awaiting_transfer: 'Trạng thái: Chờ chuyển khoản',
+      pending_review: 'Trạng thái: Chờ EmoBox đối soát',
+      pending: 'Trạng thái: Chờ thanh toán',
+      paid: 'Trạng thái: Đã thanh toán'
+    };
+    document.getElementById('paymentStatus').textContent = statusMap[lastOrder.paymentStatus] || 'Trạng thái: Đang xử lý';
     document.getElementById('trackLink').href = 'track-order.html?code=' + encodeURIComponent(code);
-    if (lastOrder.paymentMethod === 'bank_transfer' || lastOrder.paymentStatus === 'pending') {
+    if (lastOrder.paymentMethod === 'bank_transfer' || ['pending', 'pending_review', 'awaiting_transfer'].includes(lastOrder.paymentStatus)) {
       document.getElementById('bankHint').style.display = 'block';
     }
   </script>
