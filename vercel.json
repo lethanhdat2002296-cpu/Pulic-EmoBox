@@ -8,6 +8,10 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/api/payments/review/:action",
+      "destination": "/api/review?action=:action"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api?path=:path*"
     },
