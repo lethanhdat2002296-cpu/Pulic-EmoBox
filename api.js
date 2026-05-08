@@ -47,6 +47,28 @@
     }
   }
 
+  async function directRequest(path, payload) {
+    if (!apiEnabled) {
+      return { ok: false, skipped: true };
+    }
+
+    try {
+      const response = await fetch(apiBase + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      return data;
+    } catch (err) {
+      console.warn('[EmoBox SQL] Khong goi duoc API:', err.message);
+      return { ok: false, error: err.message };
+    }
+  }
+
   window.EmoBoxApi = {
     upsertUser(user, extra) {
       return request('/api/users/upsert', { user: Object.assign(compactUser(user) || {}, extra || {}) });
@@ -153,6 +175,16 @@
       return request('/api/orders/confirm-bank-transfer', Object.assign({
         user: compactUser(user),
         orderCode
+      }, payload || {}));
+    },
+    listPaymentReviews(secret) {
+      return directRequest('/api/payments/review/list', {
+        secret
+      });
+    },
+    decidePaymentReview(secret, payload) {
+      return directRequest('/api/payments/review/decide', Object.assign({
+        secret
       }, payload || {}));
     },
     sendContactMessage(message) {
