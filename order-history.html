@@ -29,19 +29,28 @@
       return map[value] || value || 'Chưa rõ';
     }
 
+    function orderLabel(value) {
+      const map = { processing: 'Đang xử lý', paid: 'Đã thanh toán', delivered: 'Đã giao', cancelled: 'Đã hủy' };
+      return map[value] || value || 'Đang xử lý';
+    }
+
     function renderOrders(orders) {
       const list = document.getElementById('ordersList');
       if (!orders.length) {
         list.innerHTML = '<div class="order-card"><p style="color:var(--text-muted);">Bạn chưa có đơn hàng nào.</p><a class="btn btn-primary" href="index.html">Mua sắm ngay</a></div>';
         return;
       }
-      list.innerHTML = orders.map(order => `
+      list.innerHTML = orders.map(order => {
+        const latestTracking = (order.tracking || []).slice(-1)[0];
+        return `
         <article class="order-card">
           <div class="order-head">
             <div>
               <h2 style="margin:0 0 0.3rem;">${order.orderCode}</h2>
               <p style="color:var(--text-muted);">Ngày đặt: ${new Date(order.createdAt).toLocaleString('vi-VN')}</p>
               <p>Thanh toán: <strong>${paymentLabel(order.paymentStatus)}</strong></p>
+              <p>Trạng thái đơn: <strong>${orderLabel(order.orderStatus)}</strong></p>
+              ${latestTracking ? `<p style="color:var(--text-muted);">Cập nhật mới nhất: ${latestTracking.title}</p>` : ''}
             </div>
             <div style="text-align:right;">
               <div style="font-size:1.3rem;font-weight:800;color:#0284c7;">${formatPrice(order.total)}</div>
@@ -53,7 +62,8 @@
             <a class="btn btn-ghost" href="track-order.html?code=${encodeURIComponent(order.orderCode)}">Theo dõi</a>
           </div>
         </article>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function buyAgain(orderCode) {
