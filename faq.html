@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Câu hỏi thường gặp - EmoBox</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f8fafc; }
+    .policy-page { max-width: 900px; margin: 0 auto; padding: 4rem 1rem 6rem; }
+    .policy-card { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 2rem; margin-bottom: 1rem; }
+    .policy-card h3 { margin-bottom: 0.6rem; color: #0f172a; }
+    .policy-card p { color: var(--text-muted); line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <nav class="navbar"><div class="container nav-inner"><a href="index.html" class="nav-logo"><img src="Logo.png" alt="EmoBox Logo" style="height:32px"></a><div class="nav-links" id="navLinks"><a href="index.html" class="nav-link">Trang Chủ</a><a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc</a><a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp</a><a href="plans.html" class="nav-link">Subscription</a><a href="calendar.html" class="nav-link">Đặt Lịch</a><a href="contact.html" class="nav-link">Liên Hệ</a></div><div class="nav-actions"><a href="cart.html" class="btn-icon">🛍️<span class="cart-badge" id="cartBadge">0</span></a><button class="hamburger" onclick="toggleNav()">☰</button></div></div></nav>
+  <main class="policy-page">
+    <h1 class="section-title" style="margin-bottom:1rem;">Câu Hỏi Thường Gặp</h1>
+    <div class="policy-card"><h3>EmoBox chọn quà như thế nào?</h3><p>EmoBox dựa trên cảm xúc, dịp tặng, ngân sách và người nhận để gợi ý gói quà phù hợp. Bạn vẫn có thể tùy chỉnh món đi kèm trước khi thanh toán.</p></div>
+    <div class="policy-card"><h3>Tôi có thể đặt lịch giao quà không?</h3><p>Có. Thành viên có thể đặt lịch tặng quà, quản lý lịch giao và nhận email xác nhận. Lịch chỉ được hủy trước ngày giao tối thiểu 5 ngày.</p></div>
+    <div class="policy-card"><h3>Nếu thanh toán bằng Ví EmoBox rồi hủy lịch thì sao?</h3><p>Nếu hủy hợp lệ, tiền sẽ được hoàn về Ví EmoBox và lưu lại trong lịch sử giao dịch.</p></div>
+    <div class="policy-card"><h3>Tôi theo dõi đơn hàng ở đâu?</h3><p>Vào trang Theo dõi đơn hàng, nhập mã đơn cùng email hoặc số điện thoại đã dùng khi đặt hàng.</p></div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="data.js"></script><script src="api.js"></script><script src="app.js"></script>
+</body>
+</html>
