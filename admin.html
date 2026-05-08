@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f6f8fb; color: #0f172a; font-family: Inter, system-ui, sans-serif; }
+    button, input, select { font: inherit; }
+    .admin-layout { min-height: 100vh; display: grid; grid-template-columns: 260px 1fr; }
+    .sidebar { background: #0f3d56; color: #e0f2fe; padding: 22px; position: sticky; top: 0; height: 100vh; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+    .brand img { height: 32px; background: #fff; border-radius: 6px; padding: 3px; }
+    .brand strong { color: #fff; }
+    .nav-stack { display: grid; gap: 8px; }
+    .nav-btn { width: 100%; text-align: left; border: 0; background: transparent; color: #cbeafe; border-radius: 8px; padding: 11px 12px; cursor: pointer; font-weight: 700; }
+    .nav-btn.active, .nav-btn:hover { background: #0ea5e9; color: #fff; }
+    .sidebar-footer { position: absolute; left: 22px; right: 22px; bottom: 22px; }
+    .logout-btn { width: 100%; border: 1px solid rgba(255,255,255,0.25); background: transparent; color: #fff; border-radius: 8px; padding: 10px; cursor: pointer; font-weight: 800; }
+    .main { padding: 28px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+    h1 { margin: 0 0 6px; font-size: 1.9rem; }
+    .muted { color: #64748b; }
+    .admin-name { font-weight: 800; color: #0369a1; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .card { background: #fff; border: 1px solid #d7eaf6; border-radius: 8px; padding: 18px; }
+    .metric span { display: block; color: #64748b; font-size: 0.83rem; margin-bottom: 8px; }
+    .metric strong { display: block; font-size: 1.45rem; }
+    .card-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .card-title h2 { margin: 0; font-size: 1.05rem; }
+    .btn { border: 0; border-radius: 8px; padding: 10px 13px; font-weight: 800; cursor: pointer; }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-good { background: #059669; color: #fff; }
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-ghost { background: #e0f2fe; color: #075985; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    th { color: #64748b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .pill { display: inline-flex; border-radius: 999px; padding: 4px 8px; background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.75rem; }
+    .pill.paid, .pill.active, .pill.completed { background: #dcfce7; color: #166534; }
+    .pill.rejected { background: #fee2e2; color: #991b1b; }
+    .bar-row { display: grid; grid-template-columns: 96px 1fr 92px; gap: 10px; align-items: center; margin: 10px 0; font-size: 0.85rem; }
+    .bar-track { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+    .bar-fill { height: 100%; background: #0284c7; border-radius: 999px; min-width: 2px; }
+    .review-card { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid #e2e8f0; }
+    .review-card:last-child { border-bottom: 0; }
+    .review-title { font-weight: 800; margin-bottom: 6px; }
+    .review-actions { display: flex; gap: 8px; }
+    .settings-row { display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 14px 0; border-bottom: 1px solid #e2e8f0; }
+    .switch { position: relative; display: inline-flex; width: 54px; height: 30px; }
+    .switch input { display: none; }
+    .slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; cursor: pointer; }
+    .slider::before { content: ''; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+    .switch input:checked + .slider { background: #0284c7; }
+    .switch input:checked + .slider::before { transform: translateX(24px); }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    label { display: block; color: #334155; font-weight: 800; font-size: 0.84rem; margin-bottom: 6px; }
+    input, select { width: 100%; border: 1px solid #b9ddf3; border-radius: 8px; height: 42px; padding: 0 10px; outline: none; }
+    input:focus, select:focus { border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12); }
+    .toast { position: fixed; right: 18px; bottom: 18px; background: #0f3d56; color: #fff; border-radius: 8px; padding: 12px 14px; opacity: 0; pointer-events: none; transition: 0.2s; max-width: 360px; }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 980px) {
+      .admin-layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .sidebar-footer { position: static; margin-top: 18px; }
+      .grid-4, .grid-2, .form-grid { grid-template-columns: 1fr; }
+      .review-card { grid-template-columns: 1fr; }
+      .main { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="Logo.png" alt="EmoBox">
+        <div><strong>EmoBox Admin</strong><br><span style="font-size:0.8rem;">Quản lý vận hành</span></div>
+      </div>
+      <nav class="nav-stack">
+        <button class="nav-btn active" data-section="reports">Báo cáo</button>
+        <button class="nav-btn" data-section="reviews">Đối soát thanh toán</button>
+        <button class="nav-btn" data-section="settings">Cấu hình chức năng</button>
+        <button class="nav-btn" data-section="admins">Tài khoản Admin</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logoutAdmin()">Đăng xuất</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Báo cáo</h1>
+          <div class="muted">Dữ liệu lấy trực tiếp từ DB EmoBox.</div>
+        </div>
+        <div>
+          <span class="muted">Xin chào, </span><span class="admin-name" id="adminName">Admin</span>
+          <button class="btn btn-ghost" onclick="loadDashboard()" style="margin-left:12px;">Làm mới</button>
+        </div>
+      </header>
+
+      <section id="reports" class="section active">
+        <div class="grid-4">
+          <div class="card metric"><span>Báo cáo bán hàng</span><strong id="mTotalOrders">0</strong></div>
+          <div class="card metric"><span>Báo cáo doanh thu đã thanh toán</span><strong id="mRevenue">0 đ</strong></div>
+          <div class="card metric"><span>Đơn đã giao</span><strong id="mDelivered">0</strong></div>
+          <div class="card metric"><span>Đơn chưa giao</span><strong id="mUndelivered">0</strong></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><h2>Doanh thu 14 ngày</h2><span class="muted" id="todayRevenue"></span></div>
+            <div id="dailyRevenueBars"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>Thống kê đối tượng theo gói</h2></div>
+            <div id="planStats"></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="card">
+            <div class="card-title"><h2>Báo cáo Nhập Xuất Tồn giả định</h2><span class="muted">Nhập mặc định 50/sp</span></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Sản phẩm</th><th>Nhập</th><th>Xuất</th><th>Tồn</th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>Trạng thái thanh toán</h2></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Phương thức</th><th>Trạng thái</th><th>Số đơn</th><th>Giá trị</th></tr></thead><tbody id="paymentRows"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="card">
+            <div class="card-title"><h2>Báo cáo đơn hàng đã được giao</h2></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Mã đơn</th><th>Người nhận</th><th>Tổng</th><th>Ngày</th></tr></thead><tbody id="deliveredRows"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>Báo cáo đơn hàng chưa được giao</h2></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Mã đơn</th><th>Người nhận</th><th>TT thanh toán</th><th>Tổng</th></tr></thead><tbody id="undeliveredRows"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="reviews" class="section">
+        <div class="card">
+          <div class="card-title">
+            <div>
+              <h2>Chức năng đối soát thanh toán</h2>
+              <div class="muted">Xác nhận các giao dịch chuyển khoản ngân hàng thành công.</div>
+            </div>
+            <button class="btn btn-primary" onclick="loadReviews()">Tải đối soát</button>
+          </div>
+          <div id="reviewList"></div>
+        </div>
+      </section>
+
+      <section id="settings" class="section">
+        <div class="card">
+          <div class="card-title"><h2>Cấu hình đối soát</h2></div>
+          <div class="settings-row">
+            <div>
+              <strong>Chế độ tự động đối soát</strong>
+              <div class="muted">Khi bật, admin web sẽ quét mỗi 10 giây và tự xác nhận giao dịch đang chờ đối soát.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="autoReviewToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div>
+              <strong>Thời gian tự động</strong>
+              <div class="muted">Cố định 10 giây kể từ khi giao dịch được ghi nhận ở trạng thái chờ đối soát.</div>
+            </div>
+            <strong>10 giây</strong>
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:16px;">Lưu cấu hình</button>
+        </div>
+      </section>
+
+      <section id="admins" class="section">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><h2>Tạo tài khoản Admin</h2></div>
+            <div class="form-grid">
+              <div><label>Họ tên</label><input id="newAdminName" placeholder="EmoBox Admin"></div>
+              <div><label>Email</label><input id="newAdminEmail" type="email" placeholder="admin@emobox.vn"></div>
+              <div><label>Mật khẩu</label><input id="newAdminPassword" type="password" placeholder="Tối thiểu 8 ký tự"></div>
+              <div><label>Quyền</label><select id="newAdminRole"><option value="admin">admin</option><option value="owner">owner</option></select></div>
+            </div>
+            <button class="btn btn-primary" onclick="createAdmin()" style="margin-top:16px;">Tạo / cập nhật admin</button>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>Danh sách Admin</h2><button class="btn btn-ghost" onclick="loadAdmins()">Tải lại</button></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Email</th><th>Quyền</th><th>Trạng thái</th></tr></thead><tbody id="adminRows"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const token = localStorage.getItem('emobox_admin_token');
+    const adminUser = JSON.parse(localStorage.getItem('emobox_admin_user') || '{}');
+    let dashboardData = null;
+    let autoTimer = null;
+
+    if (!token) {
+      window.location.href = 'admin-login.html';
+    }
+
+    document.getElementById('adminName').textContent = adminUser.name || adminUser.email || 'Admin';
+
+    function toast(message) {
+      const box = document.getElementById('toast');
+      box.textContent = message;
+      box.classList.add('show');
+      setTimeout(() => box.classList.remove('show'), 2600);
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('emobox_admin_token');
+      localStorage.removeItem('emobox_admin_user');
+      window.location.href = 'admin-login.html';
+    }
+
+    async function adminRequest(action, payload = {}) {
+      const response = await fetch(`/api/admin/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('emobox_admin_token') || ''}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) logoutAdmin();
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
+    }
+
+    function dateText(value) {
+      if (!value) return '';
+      return new Date(value).toLocaleDateString('vi-VN');
+    }
+
+    function statusPill(value) {
+      const label = {
+        paid: 'Đã thanh toán',
+        pending_review: 'Chờ đối soát',
+        awaiting_transfer: 'Chờ chuyển khoản',
+        pending: 'Chờ thanh toán',
+        delivered: 'Đã giao',
+        processing: 'Đang xử lý',
+        active: 'Đã kích hoạt',
+        completed: 'Hoàn tất',
+        rejected: 'Không khớp'
+      }[value] || value || 'Chưa rõ';
+      return `<span class="pill ${value || ''}">${label}</span>`;
+    }
+
+    function tableRows(rows, emptyText, render) {
+      if (!rows || !rows.length) return `<tr><td colspan="6" class="muted">${emptyText}</td></tr>`;
+      return rows.map(render).join('');
+    }
+
+    function renderBars(containerId, rows, valueKey, labelKey) {
+      const container = document.getElementById(containerId);
+      if (!rows || !rows.length) {
+        container.innerHTML = '<div class="muted">Chưa có dữ liệu.</div>';
+        return;
+      }
+      const max = Math.max(...(rows || []).map(row => Number(row[valueKey] || 0)), 1);
+      container.innerHTML = rows.map(row => {
+        const value = Number(row[valueKey] || 0);
+        const percent = Math.max(2, Math.round(value / max * 100));
+        return `
+          <div class="bar-row">
+            <span>${row[labelKey]}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${percent}%"></div></div>
+            <strong>${valueKey === 'revenue' ? money(value) : value}</strong>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderDashboard(data) {
+      dashboardData = data;
+      const reports = data.reports || {};
+      const overview = reports.overview || {};
+      document.getElementById('mTotalOrders').textContent = overview.totalOrders || 0;
+      document.getElementById('mRevenue').textContent = money(overview.paidRevenue || 0);
+      document.getElementById('mDelivered').textContent = overview.deliveredOrders || 0;
+      document.getElementById('mUndelivered').textContent = overview.undeliveredOrders || 0;
+      document.getElementById('todayRevenue').textContent = `Hôm nay: ${money(overview.todayRevenue || 0)} / ${overview.todayOrders || 0} đơn`;
+
+      renderBars('dailyRevenueBars', reports.dailyRevenue || [], 'revenue', 'date');
+      renderBars('planStats', reports.planStats || [], 'users', 'planCode');
+
+      document.getElementById('inventoryRows').innerHTML = tableRows(reports.inventory, 'Chưa có dữ liệu nhập xuất tồn.', row => `
+        <tr><td>${row.productName}</td><td>${row.importedQty}</td><td>${row.exportedQty}</td><td>${row.stockQty}</td></tr>
+      `);
+      document.getElementById('paymentRows').innerHTML = tableRows(reports.paymentStats, 'Chưa có dữ liệu thanh toán.', row => `
+        <tr><td>${row.method}</td><td>${statusPill(row.status)}</td><td>${row.count}</td><td>${money(row.amount)}</td></tr>
+      `);
+      document.getElementById('deliveredRows').innerHTML = tableRows(reports.deliveredOrders, 'Chưa có đơn đã giao.', row => `
+        <tr><td>${row.orderCode}</td><td>${row.recipient}</td><td>${money(row.total)}</td><td>${dateText(row.createdAt)}</td></tr>
+      `);
+      document.getElementById('undeliveredRows').innerHTML = tableRows(reports.undeliveredOrders, 'Không có đơn chưa giao.', row => `
+        <tr><td>${row.orderCode}</td><td>${row.recipient}</td><td>${statusPill(row.paymentStatus)}</td><td>${money(row.total)}</td></tr>
+      `);
+
+      document.getElementById('autoReviewToggle').checked = (data.settings || {}).reviewMode === 'auto';
+      renderReviews(data.reviews || {});
+      scheduleAutoRefresh(data.settings || {});
+    }
+
+    function renderReviews(reviews) {
+      const list = document.getElementById('reviewList');
+      const items = reviews.items || [];
+      if (!items.length) {
+        list.innerHTML = '<div class="muted">Không có giao dịch chờ đối soát.</div>';
+        return;
+      }
+      list.innerHTML = items.map(item => `
+        <div class="review-card">
+          <div>
+            <div class="review-title">${item.title}</div>
+            <div class="muted">Loại: ${item.type} • Mã: <strong>${item.referenceId}</strong> • ${statusPill(item.status)}</div>
+            <div class="muted">${item.user && item.user.name || 'Khách'} • ${item.user && item.user.email || ''}</div>
+          </div>
+          <div>
+            <strong>${money(item.amount)}</strong><br>
+            <span class="muted">Mã giao dịch: ${item.paymentReference || 'Chưa nhập'}</span><br>
+            ${item.proofUrl ? `<a href="${item.proofUrl}" target="_blank">Xem biên lai</a>` : '<span class="muted">Chưa có biên lai</span>'}
+          </div>
+          <div class="review-actions">
+            <button class="btn btn-good" onclick="decideReview('${item.type}','${item.referenceId}','approve')">Xác nhận</button>
+            <button class="btn btn-danger" onclick="decideReview('${item.type}','${item.referenceId}','reject')">Không khớp</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadDashboard() {
+      try {
+        const data = await adminRequest('dashboard');
+        renderDashboard(data);
+        if (data.sweep && data.sweep.reviewed) toast(`Tự động đối soát ${data.sweep.reviewed} giao dịch.`);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function loadReviews() {
+      try {
+        const data = await adminRequest('reviews');
+        renderReviews(data.reviews || {});
+        document.getElementById('autoReviewToggle').checked = (data.settings || {}).reviewMode === 'auto';
+        scheduleAutoRefresh(data.settings || {});
+        if (data.sweep && data.sweep.reviewed) toast(`Tự động đối soát ${data.sweep.reviewed} giao dịch.`);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function decideReview(type, referenceId, decision) {
+      const label = decision === 'approve' ? 'xác nhận thanh toán' : 'đánh dấu không khớp';
+      if (!window.confirm(`Bạn chắc chắn muốn ${label} cho ${referenceId}?`)) return;
+      const paymentReference = window.prompt('Mã giao dịch/ngân hàng:', referenceId) || '';
+      const note = window.prompt('Ghi chú:', decision === 'approve' ? 'Admin xác nhận đối soát thành công' : 'Thông tin chuyển khoản chưa khớp') || '';
+      try {
+        await adminRequest('decide-review', { type, referenceId, decision, paymentReference, note });
+        toast('Đã cập nhật đối soát.');
+        await loadDashboard();
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function saveSettings() {
+      try {
+        const reviewMode = document.getElementById('autoReviewToggle').checked ? 'auto' : 'manual';
+        const data = await adminRequest('save-settings', { settings: { reviewMode } });
+        scheduleAutoRefresh(data.settings || {});
+        toast('Đã lưu cấu hình.');
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    function scheduleAutoRefresh(settings) {
+      clearInterval(autoTimer);
+      if ((settings.reviewMode || 'manual') === 'auto') {
+        autoTimer = setInterval(loadReviews, 10000);
+      }
+    }
+
+    async function createAdmin() {
+      try {
+        const payload = {
+          fullName: document.getElementById('newAdminName').value.trim(),
+          email: document.getElementById('newAdminEmail').value.trim(),
+          password: document.getElementById('newAdminPassword').value,
+          role: document.getElementById('newAdminRole').value
+        };
+        await adminRequest('create-admin', payload);
+        document.getElementById('newAdminPassword').value = '';
+        toast('Đã tạo/cập nhật tài khoản admin.');
+        await loadAdmins();
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function loadAdmins() {
+      try {
+        const data = await adminRequest('admins');
+        document.getElementById('adminRows').innerHTML = tableRows(data.admins, 'Chưa có admin.', row => `
+          <tr><td>${row.email}<br><span class="muted">${row.name}</span></td><td>${row.role}</td><td>${row.active ? 'Hoạt động' : 'Khóa'}</td></tr>
+        `);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    document.querySelectorAll('.nav-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.nav-btn').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(button.dataset.section).classList.add('active');
+        document.getElementById('pageTitle').textContent = button.textContent;
+        if (button.dataset.section === 'admins') loadAdmins();
+        if (button.dataset.section === 'reviews') loadReviews();
+      });
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>
