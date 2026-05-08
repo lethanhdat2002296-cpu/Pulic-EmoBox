@@ -55,6 +55,9 @@
     /* Card form inside payment method */
     .card-form { margin-top: 1rem; display: none; padding-top: 1rem; border-top: 1px dashed var(--border); }
     .payment-opt.active .card-form { display: block; }
+    .bank-transfer-box { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border); }
+    .payment-opt.active .bank-transfer-box { display: block; }
+    .bank-note { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 1rem; color: #075985; font-size: 0.85rem; line-height: 1.5; }
 
     .order-items-list { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 1.5rem 0; margin-bottom: 1.5rem; }
     .order-item-row { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.9rem; }
@@ -161,23 +164,27 @@
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Tên người nhận <span>*</span></label>
-                <input type="text" id="shippingName" class="form-input" placeholder="Họ và tên" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
+                <input type="text" id="shippingName" class="form-input" placeholder="Họ và tên" list="savedRecipientNames" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
               </div>
               <div class="form-group">
                 <label class="form-label">Số điện thoại <span>*</span></label>
-                <input type="tel" id="shippingPhone" class="form-input" placeholder="Để liên lạc khi giao hàng" required pattern="^0[0-9]{9}$" title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0">
+                <input type="tel" id="shippingPhone" class="form-input" placeholder="Để liên lạc khi giao hàng" list="savedRecipientPhones" required pattern="^0[0-9]{9}$" title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0">
               </div>
             </div>
             
             <div class="form-group">
               <label class="form-label">Email liên hệ <span>*</span></label>
-              <input type="email" id="shippingEmail" class="form-input" placeholder="Để nhận hóa đơn và cập nhật đơn hàng" required>
+              <input type="email" id="shippingEmail" class="form-input" placeholder="Để nhận hóa đơn và cập nhật đơn hàng" list="savedRecipientEmails" required>
             </div>
             
             <div class="form-group">
               <label class="form-label">Địa chỉ giao hàng <span>*</span></label>
-              <input type="text" id="shippingAddress" class="form-input" placeholder="Số nhà, đường, ngõ, phường, tòa nhà" required minlength="5">
+              <input type="text" id="shippingAddress" class="form-input" placeholder="Số nhà, đường, ngõ, phường, tòa nhà" list="savedRecipientAddresses" required minlength="5">
             </div>
+            <datalist id="savedRecipientNames"></datalist>
+            <datalist id="savedRecipientPhones"></datalist>
+            <datalist id="savedRecipientEmails"></datalist>
+            <datalist id="savedRecipientAddresses"></datalist>
           </div>
 
           <!-- Section 2 -->
@@ -243,6 +250,33 @@
                 </div>
               </div>
             </label>
+
+            <!-- Bank Transfer -->
+            <label class="payment-opt" onclick="selectPayment(this)">
+              <input type="radio" name="payment" value="bank_transfer">
+              <div class="payment-opt-content">
+                <div class="payment-opt-label">
+                  Chuyển khoản ngân hàng / QR
+                  <span style="color: #0ea5e9; font-size: 1.2rem;">🏦</span>
+                </div>
+                <div class="bank-transfer-box">
+                  <div class="bank-note">
+                    <strong>Thông tin chuyển khoản</strong><br>
+                    Chủ tài khoản: EMOBOX<br>
+                    Nội dung CK: mã đơn sẽ hiện sau khi tạo đơn.<br>
+                    Nếu đã chuyển khoản trước, nhập mã giao dịch hoặc tải biên lai để EmoBox đối soát.
+                  </div>
+                  <div class="form-group" style="margin: 1rem 0 0.75rem;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">Mã giao dịch / nội dung chuyển khoản</label>
+                    <input type="text" id="bankPaymentReference" class="form-input" placeholder="VD: FT241234567 hoặc nội dung CK" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">Biên lai chuyển khoản</label>
+                    <input type="file" id="bankProofFile" class="form-input" accept="image/*,.pdf" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                  </div>
+                </div>
+              </div>
+            </label>
             
             <!-- Wallet -->
             <label class="payment-opt" onclick="selectPayment(this)">
@@ -289,6 +323,7 @@
   <script>
     let checkoutCartTotal = 0;
     let checkoutFinalTotal = 0;
+    let savedRecipients = [];
 
     function checkoutUserScopedKey(base) {
       const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
@@ -315,6 +350,44 @@
       document.getElementById('bankCardExpiry').value = card.expiry || '';
       document.getElementById('bankCardHolder').value = card.holderName || '';
       document.getElementById('savedCardHint').style.display = 'block';
+    }
+
+    async function loadSavedRecipients(user) {
+      if (!user || !window.EmoBoxApi) return;
+      const result = await EmoBoxApi.listRecipients(user);
+      if (!result.ok || !Array.isArray(result.recipients)) return;
+      savedRecipients = result.recipients;
+
+      const fields = {
+        savedRecipientNames: 'name',
+        savedRecipientPhones: 'phone',
+        savedRecipientEmails: 'email',
+        savedRecipientAddresses: 'address'
+      };
+      Object.entries(fields).forEach(([id, key]) => {
+        const list = document.getElementById(id);
+        if (!list) return;
+        list.innerHTML = savedRecipients
+          .map(recipient => recipient[key])
+          .filter(Boolean)
+          .map(value => `<option value="${String(value).replace(/"/g, '&quot;')}"></option>`)
+          .join('');
+      });
+    }
+
+    function applySavedRecipient(value) {
+      const text = String(value || '').trim().toLowerCase();
+      if (!text) return;
+      const recipient = savedRecipients.find(item =>
+        [item.name, item.phone, item.email, item.address]
+          .filter(Boolean)
+          .some(field => String(field).trim().toLowerCase() === text)
+      );
+      if (!recipient) return;
+      document.getElementById('shippingName').value = recipient.name || '';
+      document.getElementById('shippingPhone').value = recipient.phone || '';
+      document.getElementById('shippingEmail').value = recipient.email || '';
+      document.getElementById('shippingAddress').value = recipient.address || '';
     }
 
     function getBankCardPayload() {
@@ -360,7 +433,7 @@
             if (!firstPkg) firstPkg = item;
             name = `📅 [Lịch] ${name} (cho ${item.recipient || 'Người nhận'})`;
             let details = [...(item.fixedItems || []), ...(item.selectedPicks || [])].filter(Boolean).join(', ');
-            itemDesc = `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; font-weight: normal; line-height: 1.4;">📍 ${item.address || ''} | 📞 ${item.phone || ''}<br>🎁 ${details}</div>`;
+            itemDesc = `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; font-weight: normal; line-height: 1.4;">Mã lịch: <strong>${item.scheduleCode || item.id}</strong><br>📍 ${item.address || ''} | 📞 ${item.phone || ''}<br>🎁 ${details}</div>`;
           }
         } else {
           const box = FEATURED_BOXES.find(b => b.id === item.id) || FEATURED_BOXES[0];
@@ -467,9 +540,17 @@
       // 2. Fetch User Wallet Balance
       if (user && user.balance !== undefined) {
         document.getElementById('walletBalanceDisplay').textContent = formatPrice(user.balance);
+        if (user.email && !document.getElementById('shippingEmail').value) {
+          document.getElementById('shippingEmail').value = user.email;
+        }
       }
 
       await loadSavedBankCard(user);
+      await loadSavedRecipients(user);
+      ['shippingName', 'shippingPhone', 'shippingEmail', 'shippingAddress'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.addEventListener('change', () => applySavedRecipient(input.value));
+      });
 
       checkWalletWarning();
     }
@@ -509,6 +590,42 @@
       }
     }
 
+    function getBankTransferPayload() {
+      const proofFile = document.getElementById('bankProofFile').files[0];
+      return {
+        paymentReference: document.getElementById('bankPaymentReference').value.trim(),
+        paymentProofName: proofFile ? proofFile.name : '',
+        bankTransferNote: proofFile ? `Khách đã tải biên lai: ${proofFile.name}` : ''
+      };
+    }
+
+    function readProofFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          resolve('');
+          return;
+        }
+        if (file.size > 900 * 1024) {
+          reject(new Error('Biên lai tối đa 900KB. Vui lòng nén ảnh trước khi gửi.'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result || '');
+        reader.onerror = () => reject(new Error('Không đọc được file biên lai.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function getBankTransferPayloadAsync() {
+      const proofFile = document.getElementById('bankProofFile').files[0];
+      const paymentProofUrl = await readProofFileAsDataUrl(proofFile);
+      return {
+        paymentReference: document.getElementById('bankPaymentReference').value.trim(),
+        paymentProofUrl,
+        bankTransferNote: proofFile ? `Khách đã tải biên lai: ${proofFile.name}` : ''
+      };
+    }
+
     async function submitOrder() {
       const form = document.getElementById('checkoutForm');
       if (!form.reportValidity()) {
@@ -537,16 +654,31 @@
       }
 
       const user = JSON.parse(localStorage.getItem('emobox_user'));
+      let bankTransfer = {};
 
       if (selectedPayment === 'wallet') {
+        if (!user) {
+          showToast('⚠ Vui lòng đăng nhập để thanh toán bằng ví EmoBox.');
+          return;
+        }
         const balance = (user && user.balance) ? user.balance : 0;
         if (balance < checkoutFinalTotal) {
           showToast('⚠ Số dư ví EmoBox không đủ để thanh toán.');
           return;
         }
-        // Deduct balance
-        user.balance -= checkoutFinalTotal;
-        localStorage.setItem('emobox_user', JSON.stringify(user));
+      }
+
+      if (selectedPayment === 'bank_transfer') {
+        try {
+          bankTransfer = await getBankTransferPayloadAsync();
+        } catch (err) {
+          showToast('⚠ ' + err.message);
+          return;
+        }
+        if (!bankTransfer.paymentReference && !bankTransfer.paymentProofUrl) {
+          showToast('⚠ Vui lòng nhập mã giao dịch hoặc tải biên lai chuyển khoản.');
+          return;
+        }
       }
 
       if (selectedPayment === 'card' && document.getElementById('saveBankCard').checked) {
@@ -562,9 +694,10 @@
       let checkoutItems = JSON.parse(localStorage.getItem('emobox_checkout_items') || '[]');
       let cartData = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
       let eventsUpdated = false;
+      const shouldMarkCalendarPaid = !['bank_transfer', 'cod'].includes(selectedPayment);
 
       checkoutItems.forEach(item => {
-        if (item.isPkg && item.id.startsWith('evt_')) {
+        if (shouldMarkCalendarPaid && item.isPkg && item.id.startsWith('evt_')) {
           const evt = events.find(e => e.id === item.id);
           if (evt) {
             evt.paid = true;
@@ -574,10 +707,6 @@
         // Remove from cartData
         cartData = cartData.filter(c => c.id !== item.id);
       });
-
-      if (eventsUpdated) {
-        localStorage.setItem(checkoutUserScopedKey('emobox_events'), JSON.stringify(events));
-      }
 
       const orderItems = checkoutItems.map(item => {
         let unitPrice = 0;
@@ -602,11 +731,14 @@
         };
       });
 
-      await EmoBoxApi.saveOrder({
+      const orderResult = await EmoBoxApi.saveOrder({
         subtotal: checkoutCartTotal,
         shippingFee: checkoutFinalTotal - checkoutCartTotal,
         total: checkoutFinalTotal,
         paymentMethod: selectedPayment,
+        paymentReference: bankTransfer.paymentReference || '',
+        paymentProofUrl: bankTransfer.paymentProofUrl || '',
+        bankTransferNote: bankTransfer.bankTransferNote || '',
         contact: {
           name: document.getElementById('shippingName').value.trim(),
           phone: document.getElementById('shippingPhone').value.trim(),
@@ -618,15 +750,40 @@
         items: orderItems
       }, user);
 
+      if (!orderResult.ok || orderResult.error) {
+        showToast('⚠ Không lưu được đơn hàng: ' + (orderResult.error || 'Lỗi không xác định'));
+        return;
+      }
+
       // Empty the checkout items and update cart
+      if (eventsUpdated) {
+        localStorage.setItem(checkoutUserScopedKey('emobox_events'), JSON.stringify(events));
+      }
       localStorage.setItem('emobox_cart', JSON.stringify(cartData));
       localStorage.setItem('emobox_checkout_items', '[]');
+      if (selectedPayment === 'wallet' && user) {
+        user.balance = orderResult.balanceAfter !== null && orderResult.balanceAfter !== undefined
+          ? Number(orderResult.balanceAfter)
+          : Math.max(0, (user.balance || 0) - checkoutFinalTotal);
+        localStorage.setItem('emobox_user', JSON.stringify(user));
+      }
       if (typeof updateCartBadge === 'function') updateCartBadge();
 
-      showToast('🎉 Thanh toán thành công! Đơn hàng của bạn đang được xử lý.');
+      localStorage.setItem('emobox_last_order', JSON.stringify({
+        orderCode: orderResult.orderCode,
+        paymentStatus: orderResult.paymentStatus,
+        paymentMethod: selectedPayment,
+        total: checkoutFinalTotal,
+        email: document.getElementById('shippingEmail').value.trim()
+      }));
+
+      const doneMessage = selectedPayment === 'bank_transfer'
+        ? `🎉 Đã tạo đơn ${orderResult.orderCode}. EmoBox sẽ đối soát chuyển khoản.`
+        : `🎉 Thanh toán thành công! Mã đơn: ${orderResult.orderCode}`;
+      showToast(doneMessage, 4500);
       
       setTimeout(() => {
-        window.location.href = 'index.html';
+        window.location.href = 'order-success.html?code=' + encodeURIComponent(orderResult.orderCode);
       }, 2000);
     }
 
