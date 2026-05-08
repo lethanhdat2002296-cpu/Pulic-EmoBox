@@ -294,9 +294,22 @@
             <!-- Rendered by JS -->
           </div>
 
+          <div class="form-group" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border);">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: #334155; display: block;">Voucher / Khuyến mãi</label>
+            <select id="voucherSelect" class="form-input" onchange="updateTotal()">
+              <option value="">Không áp dụng</option>
+              <option value="10">Giảm 10% (VOUCHER10)</option>
+            </select>
+          </div>
+
           <div class="calc-row">
             <span>Phí Giao Hàng</span>
             <span id="shippingFeeDisplay" style="color: #059669; font-weight: 600;">Miễn phí</span>
+          </div>
+
+          <div class="calc-row" id="discountRow" style="display: none;">
+            <span>Giảm giá</span>
+            <span id="discountDisplay" style="color: #ef4444; font-weight: 600;">0 đ</span>
           </div>
 
           <div class="calc-row total">
@@ -324,7 +337,58 @@
   <script>
     let checkoutCartTotal = 0;
     let checkoutFinalTotal = 0;
+    let checkoutShippingFee = 0;
+    let checkoutDiscount = 0;
     let savedRecipients = [];
+
+    function updateTotal() {
+      const user = JSON.parse(localStorage.getItem('emobox_user'));
+      
+      if (user && user.plan !== 'none') {
+        checkoutShippingFee = 0;
+      } else if (checkoutCartTotal >= 500000) {
+        checkoutShippingFee = 0;
+      } else {
+        checkoutShippingFee = 30000;
+      }
+
+      const shippingDisplay = document.getElementById('shippingFeeDisplay');
+      if (shippingDisplay) {
+        if (checkoutShippingFee === 0) {
+          shippingDisplay.textContent = 'Miễn phí';
+          shippingDisplay.style.color = '#059669';
+        } else {
+          shippingDisplay.textContent = formatPrice(checkoutShippingFee);
+          shippingDisplay.style.color = '#0f172a';
+        }
+      }
+
+      let tempTotal = checkoutCartTotal + checkoutShippingFee;
+
+      const voucherSelect = document.getElementById('voucherSelect');
+      checkoutDiscount = 0;
+      if (voucherSelect && voucherSelect.value === '10') {
+         checkoutDiscount = checkoutCartTotal * 0.1;
+      }
+      
+      const discountRow = document.getElementById('discountRow');
+      const discountDisplay = document.getElementById('discountDisplay');
+      if (discountRow && discountDisplay) {
+          if (checkoutDiscount > 0) {
+              discountRow.style.display = 'flex';
+              discountDisplay.textContent = '-' + formatPrice(checkoutDiscount);
+              tempTotal -= checkoutDiscount;
+          } else {
+              discountRow.style.display = 'none';
+          }
+      }
+      
+      checkoutFinalTotal = tempTotal;
+
+      document.getElementById('checkoutTotal').textContent = formatPrice(checkoutFinalTotal);
+      document.getElementById('btnTotal').textContent = formatPrice(checkoutFinalTotal);
+      checkWalletWarning();
+    }
 
     function checkoutUserScopedKey(base) {
       const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
@@ -509,36 +573,10 @@
         }
       }
       checkoutCartTotal = total;
-
-      // Tính phí vận chuyển
-      const user = JSON.parse(localStorage.getItem('emobox_user'));
-      let shippingFee = 0;
-      
-      if (user && user.plan !== 'none') {
-        shippingFee = 0; // Thành viên luôn miễn phí
-      } else if (total >= 500000) {
-        shippingFee = 0; // Đơn >= 500k miễn phí
-      } else {
-        shippingFee = 30000; // Còn lại 30k
-      }
-
-      const shippingDisplay = document.getElementById('shippingFeeDisplay');
-      if (shippingDisplay) {
-        if (shippingFee === 0) {
-          shippingDisplay.textContent = 'Miễn phí';
-          shippingDisplay.style.color = '#059669';
-        } else {
-          shippingDisplay.textContent = formatPrice(shippingFee);
-          shippingDisplay.style.color = '#0f172a';
-        }
-      }
-
-      checkoutFinalTotal = total + shippingFee;
-
-      document.getElementById('checkoutTotal').textContent = formatPrice(checkoutFinalTotal);
-      document.getElementById('btnTotal').textContent = formatPrice(checkoutFinalTotal);
+      updateTotal();
 
       // 2. Fetch User Wallet Balance
+      const user = JSON.parse(localStorage.getItem('emobox_user'));
       if (user && user.balance !== undefined) {
         document.getElementById('walletBalanceDisplay').textContent = formatPrice(user.balance);
         if (user.email && !document.getElementById('shippingEmail').value) {
@@ -730,7 +768,8 @@
 
       const orderResult = await EmoBoxApi.saveOrder({
         subtotal: checkoutCartTotal,
-        shippingFee: checkoutFinalTotal - checkoutCartTotal,
+        shippingFee: checkoutShippingFee,
+        discount: checkoutDiscount,
         total: checkoutFinalTotal,
         paymentMethod: selectedPayment,
         paymentReference: bankTransfer.paymentReference || '',
