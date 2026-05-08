@@ -543,9 +543,12 @@
     }
 
     function selectDate(dateStr) {
+      if (isPastScheduleDate(dateStr)) {
+        showToast('Không thể đặt lịch cho ngày đã qua. Vui lòng chọn từ hôm nay trở đi.');
+        return;
+      }
       closeCalendarModal();
-      openEventModal();
-      document.getElementById('eventDate').value = dateStr;
+      openEventModal(dateStr);
     }
 
     /* FORM MODAL LOGIC */
@@ -720,15 +723,54 @@
 
     let currentEditingEventId = null;
 
+    const EVENT_CANCEL_MIN_DAYS = 5;
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+    function localDateString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function todayDateString() {
+      return localDateString(new Date());
+    }
+
+    function parseLocalDate(dateStr) {
+      const parts = String(dateStr || '').split('-').map(Number);
+      if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function daysUntilEventDate(dateStr) {
+      const target = parseLocalDate(dateStr);
+      const today = parseLocalDate(todayDateString());
+      if (!target || !today) return 0;
+      target.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      return Math.floor((target - today) / MS_PER_DAY);
+    }
+
+    function isPastScheduleDate(dateStr) {
+      return daysUntilEventDate(dateStr) < 0;
+    }
+
     function openEventModal(dateStr, eventId) {
       const currentUser = JSON.parse(localStorage.getItem('emobox_user'));
       if (!currentUser || currentUser.plan === 'none' || !currentUser.plan) {
         showToast('Chức năng dành cho người đăng ký thành viên');
         return;
       }
+
+      if (dateStr && isPastScheduleDate(dateStr)) {
+        showToast('Không thể đặt lịch cho ngày đã qua. Vui lòng chọn từ hôm nay trở đi.');
+        return;
+      }
       
       document.getElementById('eventModalOverlay').classList.add('active');
       currentEditingEventId = eventId || null;
+      document.getElementById('eventDate').min = todayDateString();
       
       if (currentEditingEventId) {
         document.querySelector('#eventModal .modal-title').textContent = 'Sửa lịch tặng quà';
@@ -772,27 +814,53 @@
         if (dateStr && typeof dateStr === 'string') {
           document.getElementById('eventDate').value = dateStr;
         } else {
-          document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+          document.getElementById('eventDate').value = todayDateString();
         }
       }
     }
     
     async function deleteEvent() {
       if (!currentEditingEventId) return;
+      const events = loadEvents();
+      const eventToDelete = events.find(e => e.id === currentEditingEventId);
+      if (!eventToDelete) {
+        showToast('Không tìm thấy lịch cần hủy.');
+        return;
+      }
+
+      if (daysUntilEventDate(eventToDelete.date) < EVENT_CANCEL_MIN_DAYS) {
+        showToast('Chỉ có thể hủy lịch trước ngày giao tối thiểu 5 ngày.');
+        return;
+      }
+
       if (!confirm('Bạn có chắc muốn xóa sự kiện này?')) return;
-      
-      let events = loadEvents();
-      events = events.filter(e => e.id !== currentEditingEventId);
-      saveEvents(events);
-      
+
+      const currentUser = JSON.parse(localStorage.getItem('emobox_user'));
+      const deleteResult = await EmoBoxApi.deleteGiftSchedule(currentEditingEventId, currentUser);
+      if (deleteResult.error || deleteResult.blocked) {
+        showToast(deleteResult.error || 'Không hủy được lịch tặng quà.');
+        return;
+      }
+
+      const remainingEvents = events.filter(e => e.id !== currentEditingEventId);
+      saveEvents(remainingEvents);
+
       // Remove from cart if it exists
       let cartData = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
       cartData = cartData.filter(item => item.id !== currentEditingEventId);
+      if (typeof cart !== 'undefined' && Array.isArray(cart)) {
+        cart = cart.filter(item => item.id !== currentEditingEventId);
+      }
       localStorage.setItem('emobox_cart', JSON.stringify(cartData));
       if(typeof updateCartBadge === 'function') updateCartBadge();
-      await EmoBoxApi.deleteGiftSchedule(currentEditingEventId, JSON.parse(localStorage.getItem('emobox_user')));
-      
-      showToast('Đã xóa sự kiện thành công!');
+
+      if (deleteResult.refundedAmount && currentUser) {
+        currentUser.balance = Number(deleteResult.balanceAfter || 0);
+        localStorage.setItem('emobox_user', JSON.stringify(currentUser));
+        showToast('Đã hủy lịch và hoàn ' + formatPrice(deleteResult.refundedAmount) + ' vào ví EmoBox.');
+      } else {
+        showToast('Đã hủy lịch tặng quà thành công!');
+      }
       closeEventModal();
       renderMainCalendar();
     }
@@ -809,6 +877,10 @@
       e.preventDefault();
       
       const date = document.getElementById('eventDate').value;
+      if (isPastScheduleDate(date)) {
+        showToast('Không thể đặt lịch cho ngày đã qua. Vui lòng chọn từ hôm nay trở đi.');
+        return;
+      }
       
       const currentUser = JSON.parse(localStorage.getItem('emobox_user'));
       if (currentUser && currentUser.plan && currentUser.plan !== 'none') {
@@ -858,16 +930,19 @@
       }
 
       const groupValue = document.getElementById('eventGroup').value;
+      let events = loadEvents();
+      const isEditingEvent = Boolean(currentEditingEventId);
+      const existingEvent = isEditingEvent ? events.find(e => e.id === currentEditingEventId) : null;
 
       const newEvent = {
-        id: currentEditingEventId ? currentEditingEventId : 'evt_' + Date.now(),
+        id: isEditingEvent ? currentEditingEventId : 'evt_' + Date.now(),
         date: date,
         title: 'Quà cho ' + recipient,
         recipient: recipient,
         address: address,
         phone: phone,
         email: email,
-        paid: false,
+        paid: existingEvent ? Boolean(existingEvent.paid) : false,
         group: groupValue,
         cat: catValue,
         tier: tierValue,
@@ -879,15 +954,16 @@
         image: document.getElementById('eventImage').src
       };
 
-      if (paymentMethod === 'wallet') {
-        if (currentUser.balance < pkg.priceNum) {
+      if (paymentMethod === 'wallet' && !isEditingEvent) {
+        const currentBalance = Number(currentUser.balance || 0);
+        if (currentBalance < pkg.priceNum) {
           showToast('Số dư ví không đủ!');
           return;
         }
-        currentUser.balance -= pkg.priceNum;
+        currentUser.balance = currentBalance - pkg.priceNum;
         localStorage.setItem('emobox_user', JSON.stringify(currentUser));
         newEvent.paid = true;
-      } else {
+      } else if (!newEvent.paid) {
         // Redirect to cart or add to cart
         // Check if already in cart
         const cartIndex = cart.findIndex(item => item.id === newEvent.id);
@@ -916,8 +992,7 @@
         updateCartBadge();
       }
 
-      let events = loadEvents();
-      if (currentEditingEventId) {
+      if (isEditingEvent) {
         const idx = events.findIndex(e => e.id === currentEditingEventId);
         if (idx > -1) events[idx] = newEvent;
       } else {
@@ -947,7 +1022,7 @@
       closeEventModal();
       renderMainCalendar();
 
-      if (paymentMethod === 'bank') {
+      if (!newEvent.paid) {
         const cartItemToCheckout = {
           id: newEvent.id,
           isPkg: true,
@@ -963,6 +1038,7 @@
           phone: newEvent.phone
         };
         localStorage.setItem('emobox_checkout_items', JSON.stringify([cartItemToCheckout]));
+        localStorage.setItem('emobox_checkout_payment_method', paymentMethod);
         window.location.href = 'checkout.html';
       } else {
         showToast(currentEditingEventId ? '📅 Đã cập nhật lịch tặng quà!' : '📅 Đã lưu lịch tặng quà thành công!');
