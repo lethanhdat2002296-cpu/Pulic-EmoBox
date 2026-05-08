@@ -205,21 +205,22 @@
           
           <div class="payment-methods">
             <!-- COD -->
-            <label class="payment-opt" id="codPaymentLabel" onclick="selectPayment(this)">
-              <input type="radio" name="payment" value="cod">
+            <label class="payment-opt active" id="codPaymentLabel" onclick="selectPayment(this)">
+              <input type="radio" name="payment" value="cod" checked>
               <div class="payment-opt-content">
                 <div class="payment-opt-label">Tiền mặt khi nhận hàng (COD)</div>
               </div>
             </label>
             
             <!-- Credit Card -->
-            <label class="payment-opt active" onclick="selectPayment(this)">
-              <input type="radio" name="payment" value="card" checked>
+            <label class="payment-opt" style="opacity:0.62;cursor:not-allowed;">
+              <input type="radio" name="payment" value="card" disabled>
               <div class="payment-opt-content">
                 <div class="payment-opt-label">
-                  Thẻ Ngân Hàng (Visa, Mastercard, v.v.)
+                  Thẻ Ngân Hàng (sắp kết nối cổng thanh toán)
                   <span style="color: #0ea5e9; font-size: 1.2rem;">💳</span>
                 </div>
+                <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;">EmoBox chưa xử lý thẻ trực tiếp. Vui lòng chọn COD, chuyển khoản hoặc Ví EmoBox.</div>
                 
                 <div class="card-form">
                   <div class="form-group" style="margin-bottom: 1rem;">
@@ -469,11 +470,11 @@
       if (allScheduled) {
         // Only scheduled items: hide COD
         if (codLabel) codLabel.style.display = 'none';
-        const cardRadio = document.querySelector('input[name="payment"][value="card"]');
-        if (cardRadio) {
-          cardRadio.checked = true;
-          cardRadio.closest('.payment-opt').classList.add('active');
-          document.querySelector('input[name="payment"][value="cod"]')?.closest('.payment-opt')?.classList.remove('active');
+        const bankRadio = document.querySelector('input[name="payment"][value="bank_transfer"]');
+        if (bankRadio) {
+          document.querySelectorAll('.payment-opt').forEach(opt => opt.classList.remove('active'));
+          bankRadio.checked = true;
+          bankRadio.closest('.payment-opt').classList.add('active');
         }
       } else {
         // Normal items only: show COD
@@ -484,7 +485,7 @@
       if (preferredPayment) {
         const preferredRadio = document.querySelector(`input[name="payment"][value="${preferredPayment}"]`);
         const preferredLabel = preferredRadio ? preferredRadio.closest('.payment-opt') : null;
-        if (preferredRadio && preferredLabel && preferredLabel.style.display !== 'none') {
+        if (preferredRadio && !preferredRadio.disabled && preferredLabel && preferredLabel.style.display !== 'none') {
           document.querySelectorAll('.payment-opt').forEach(opt => opt.classList.remove('active'));
           preferredRadio.checked = true;
           preferredLabel.classList.add('active');
@@ -675,10 +676,6 @@
           showToast('⚠ ' + err.message);
           return;
         }
-        if (!bankTransfer.paymentReference && !bankTransfer.paymentProofUrl) {
-          showToast('⚠ Vui lòng nhập mã giao dịch hoặc tải biên lai chuyển khoản.');
-          return;
-        }
       }
 
       if (selectedPayment === 'card' && document.getElementById('saveBankCard').checked) {
@@ -778,7 +775,7 @@
       }));
 
       const doneMessage = selectedPayment === 'bank_transfer'
-        ? `🎉 Đã tạo đơn ${orderResult.orderCode}. EmoBox sẽ đối soát chuyển khoản.`
+        ? `🎉 Đã tạo đơn ${orderResult.orderCode}. Vui lòng chuyển khoản đúng mã đơn, EmoBox sẽ đối soát.`
         : `🎉 Thanh toán thành công! Mã đơn: ${orderResult.orderCode}`;
       showToast(doneMessage, 4500);
       
