@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đặt hàng thành công - EmoBox</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f8fafc; }
+    .success-wrap { max-width: 760px; margin: 0 auto; padding: 5rem 1rem 7rem; }
+    .success-card { background: #fff; border: 1px solid var(--border); border-radius: 24px; padding: 2rem; box-shadow: var(--shadow); }
+    .code-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 1rem; margin: 1.5rem 0; color: #075985; }
+    .action-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar"><div class="container nav-inner"><a href="index.html" class="nav-logo"><img src="Logo.png" alt="EmoBox Logo" style="height:32px"></a><div class="nav-links" id="navLinks"><a href="index.html" class="nav-link">Trang Chủ</a><a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc</a><a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp</a><a href="plans.html" class="nav-link">Subscription</a><a href="calendar.html" class="nav-link">Đặt Lịch</a><a href="contact.html" class="nav-link">Liên Hệ</a></div><div class="nav-actions"><a href="cart.html" class="btn-icon">🛍️<span class="cart-badge" id="cartBadge">0</span></a><button class="hamburger" onclick="toggleNav()">☰</button></div></div></nav>
+  <main class="success-wrap">
+    <div class="success-card">
+      <h1 class="section-title" style="margin-bottom:0.5rem;">Đặt hàng thành công</h1>
+      <p style="color:var(--text-muted);line-height:1.7">EmoBox đã ghi nhận đơn hàng của bạn. Mã đơn bên dưới sẽ được dùng để theo dõi, đối soát thanh toán và hỗ trợ sau bán.</p>
+      <div class="code-box">
+        <div style="font-size:0.85rem;font-weight:700;">Mã đơn hàng</div>
+        <div id="orderCode" style="font-size:1.8rem;font-weight:800;letter-spacing:0.04em;margin-top:0.25rem;"></div>
+        <div id="paymentStatus" style="margin-top:0.5rem;"></div>
+      </div>
+      <div id="bankHint" style="display:none;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:1rem;line-height:1.6;">
+        Đơn chuyển khoản đang chờ EmoBox đối soát. Nếu bạn chưa gửi biên lai, hãy dùng trang Theo dõi đơn hàng để bổ sung mã giao dịch hoặc biên lai.
+      </div>
+      <div class="action-row">
+        <a class="btn btn-primary" id="trackLink" href="track-order.html">Theo dõi đơn hàng</a>
+        <a class="btn btn-outline" href="order-history.html">Lịch sử đơn hàng</a>
+        <a class="btn btn-ghost" href="index.html">Tiếp tục mua sắm</a>
+      </div>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="data.js"></script><script src="api.js"></script><script src="app.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const lastOrder = JSON.parse(localStorage.getItem('emobox_last_order') || '{}');
+    const code = params.get('code') || lastOrder.orderCode || '';
+    document.getElementById('orderCode').textContent = code || 'Chưa có mã đơn';
+    document.getElementById('paymentStatus').textContent = lastOrder.paymentStatus === 'pending'
+      ? 'Trạng thái: Chờ thanh toán/đối soát'
+      : 'Trạng thái: Đã thanh toán hoặc đang xử lý';
+    document.getElementById('trackLink').href = 'track-order.html?code=' + encodeURIComponent(code);
+    if (lastOrder.paymentMethod === 'bank_transfer' || lastOrder.paymentStatus === 'pending') {
+      document.getElementById('bankHint').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

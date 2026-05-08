@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lịch sử đơn hàng - EmoBox</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background:#f8fafc; }
+    .history-wrap { max-width: 1050px; margin:0 auto; padding:4rem 1rem 7rem; }
+    .order-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:1.5rem; margin-bottom:1rem; box-shadow:var(--shadow); }
+    .order-head { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; margin-bottom:1rem; }
+    .order-item { border-top:1px solid var(--border); padding:0.8rem 0; display:flex; justify-content:space-between; gap:1rem; }
+    @media (max-width: 720px) { .order-head { flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar"><div class="container nav-inner"><a href="index.html" class="nav-logo"><img src="Logo.png" alt="EmoBox Logo" style="height:32px"></a><div class="nav-links" id="navLinks"><a href="index.html" class="nav-link">Trang Chủ</a><a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc</a><a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp</a><a href="plans.html" class="nav-link">Subscription</a><a href="calendar.html" class="nav-link">Đặt Lịch</a><a href="contact.html" class="nav-link">Liên Hệ</a></div><div class="nav-actions"><a href="cart.html" class="btn-icon">🛍️<span class="cart-badge" id="cartBadge">0</span></a><button class="hamburger" onclick="toggleNav()">☰</button></div></div></nav>
+  <main class="history-wrap">
+    <h1 class="section-title" style="margin-bottom:1rem;">Lịch Sử Đơn Hàng</h1>
+    <div id="ordersList"><p style="color:var(--text-muted);">Đang tải lịch sử đơn hàng...</p></div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="data.js"></script><script src="api.js"></script><script src="app.js"></script>
+  <script>
+    let loadedOrders = [];
+    function paymentLabel(value) {
+      const map = { paid: 'Đã thanh toán', pending: 'Chờ thanh toán', pending_review: 'Chờ đối soát' };
+      return map[value] || value || 'Chưa rõ';
+    }
+
+    function renderOrders(orders) {
+      const list = document.getElementById('ordersList');
+      if (!orders.length) {
+        list.innerHTML = '<div class="order-card"><p style="color:var(--text-muted);">Bạn chưa có đơn hàng nào.</p><a class="btn btn-primary" href="index.html">Mua sắm ngay</a></div>';
+        return;
+      }
+      list.innerHTML = orders.map(order => `
+        <article class="order-card">
+          <div class="order-head">
+            <div>
+              <h2 style="margin:0 0 0.3rem;">${order.orderCode}</h2>
+              <p style="color:var(--text-muted);">Ngày đặt: ${new Date(order.createdAt).toLocaleString('vi-VN')}</p>
+              <p>Thanh toán: <strong>${paymentLabel(order.paymentStatus)}</strong></p>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:1.3rem;font-weight:800;color:#0284c7;">${formatPrice(order.total)}</div>
+              <button class="btn btn-outline" style="margin-top:0.75rem;" onclick="buyAgain('${order.orderCode}')">Mua lại</button>
+            </div>
+          </div>
+          ${(order.items || []).map(item => `<div class="order-item"><span>${item.name} x${item.quantity}</span><strong>${formatPrice(Number(item.lineTotal || 0))}</strong></div>`).join('')}
+          <div style="margin-top:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <a class="btn btn-ghost" href="track-order.html?code=${encodeURIComponent(order.orderCode)}">Theo dõi</a>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function buyAgain(orderCode) {
+      const order = loadedOrders.find(item => item.orderCode === orderCode);
+      if (!order) return;
+      const items = (order.items || []).map(item => {
+        const pkg = item.package || {};
+        return Object.assign({}, pkg.id ? pkg : { id: item.id, name: item.name }, {
+          id: pkg.id || item.id,
+          quantity: item.quantity || 1,
+          isPkg: pkg.isPkg || false,
+          priceNum: pkg.priceNum || Number(item.unitPrice || 0),
+          pkgPrice: pkg.pkgPrice || Number(item.unitPrice || 0)
+        });
+      });
+      const currentCart = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
+      localStorage.setItem('emobox_cart', JSON.stringify(currentCart.concat(items)));
+      showToast('Đã thêm lại sản phẩm vào giỏ hàng.');
+      setTimeout(() => window.location.href = 'cart.html', 700);
+    }
+
+    async function loadOrders() {
+      const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
+      if (!user) {
+        document.getElementById('ordersList').innerHTML = '<div class="order-card"><p>Vui lòng đăng nhập để xem lịch sử đơn hàng.</p><a class="btn btn-primary" href="login.html">Đăng nhập</a></div>';
+        return;
+      }
+      const result = await EmoBoxApi.listOrders(user);
+      if (!result.ok) {
+        document.getElementById('ordersList').innerHTML = `<div class="order-card"><p style="color:#ef4444;">${result.error || 'Không tải được lịch sử đơn hàng.'}</p></div>`;
+        return;
+      }
+      loadedOrders = result.orders || [];
+      renderOrders(loadedOrders);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadOrders);
+  </script>
+</body>
+</html>
