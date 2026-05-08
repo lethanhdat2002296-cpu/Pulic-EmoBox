@@ -16,6 +16,12 @@
       "destination": "/index.html"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/orders/reminders/upcoming",
+      "schedule": "0 1 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
