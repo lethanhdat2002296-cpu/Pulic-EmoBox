@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vận chuyển & Đổi trả - EmoBox</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f8fafc; }
+    .policy-page { max-width: 900px; margin: 0 auto; padding: 4rem 1rem 6rem; }
+    .policy-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:2rem; margin-bottom:1rem; line-height:1.7; }
+  </style>
+</head>
+<body>
+  <nav class="navbar"><div class="container nav-inner"><a href="index.html" class="nav-logo"><img src="Logo.png" alt="EmoBox Logo" style="height:32px"></a><div class="nav-links" id="navLinks"><a href="index.html" class="nav-link">Trang Chủ</a><a href="emotion-gifts.html" class="nav-link">Quà Cảm Xúc</a><a href="occasion-gifts.html" class="nav-link">Quà Theo Dịp</a><a href="plans.html" class="nav-link">Subscription</a><a href="calendar.html" class="nav-link">Đặt Lịch</a><a href="contact.html" class="nav-link">Liên Hệ</a></div><div class="nav-actions"><a href="cart.html" class="btn-icon">🛍️<span class="cart-badge" id="cartBadge">0</span></a><button class="hamburger" onclick="toggleNav()">☰</button></div></div></nav>
+  <main class="policy-page">
+    <h1 class="section-title" style="margin-bottom:1rem;">Vận Chuyển & Đổi Trả</h1>
+    <div class="policy-card"><h3>Thời gian giao hàng</h3><p>Đơn hàng thông thường được xử lý trong 1-2 ngày làm việc. Lịch tặng quà sẽ được chuẩn bị theo ngày bạn chọn.</p></div>
+    <div class="policy-card"><h3>Phí giao hàng</h3><p>Thành viên EmoBox được miễn phí giao hàng. Đơn từ 500.000đ cũng được miễn phí giao hàng.</p></div>
+    <div class="policy-card"><h3>Đổi trả</h3><p>EmoBox hỗ trợ đổi trả nếu sản phẩm bị lỗi, giao sai gói hoặc hư hỏng trong quá trình vận chuyển. Vui lòng liên hệ trong vòng 24 giờ sau khi nhận quà.</p></div>
+    <div class="policy-card"><h3>Hủy lịch tặng quà</h3><p>Lịch tặng quà chỉ được hủy trước ngày giao tối thiểu 5 ngày. Nếu đã thanh toán bằng Ví EmoBox và hủy hợp lệ, tiền sẽ hoàn về ví.</p></div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="data.js"></script><script src="api.js"></script><script src="app.js"></script>
+</body>
+</html>
