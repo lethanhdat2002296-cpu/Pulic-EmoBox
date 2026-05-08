@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đối soát thanh toán - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f8fafc; }
+    .review-shell { padding: 3rem 0 6rem; max-width: 1160px; margin: 0 auto; }
+    .review-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-end; margin-bottom: 2rem; }
+    .review-kicker { color: var(--primary); font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .review-title { font-family: var(--font-serif); font-size: 2.4rem; margin: 0.35rem 0 0.5rem; color: #0f172a; }
+    .review-subtitle { color: var(--text-muted); max-width: 680px; line-height: 1.6; }
+    .secret-box { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; min-width: 360px; }
+    .secret-row { display: flex; gap: 0.75rem; align-items: center; }
+    .secret-input { flex: 1; height: 42px; border: 1px solid var(--border); border-radius: 8px; padding: 0 0.8rem; font: inherit; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .summary-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .summary-card span { display: block; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 0.45rem; }
+    .summary-card strong { font-size: 1.45rem; color: #0f172a; }
+    .review-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .filter-tabs { display: inline-flex; gap: 0.4rem; background: #e0f2fe; padding: 0.35rem; border-radius: 8px; }
+    .filter-tabs button { border: 0; background: transparent; color: #075985; padding: 0.55rem 0.85rem; border-radius: 7px; font-weight: 700; cursor: pointer; }
+    .filter-tabs button.active { background: #fff; color: #0f172a; }
+    .review-list { display: flex; flex-direction: column; gap: 0.85rem; }
+    .review-item { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 1rem; align-items: center; }
+    .item-main h3 { margin: 0 0 0.4rem; font-size: 1.02rem; color: #0f172a; }
+    .item-meta { color: var(--text-muted); font-size: 0.84rem; line-height: 1.55; }
+    .item-detail { color: #334155; font-size: 0.86rem; line-height: 1.55; }
+    .item-amount { font-size: 1.1rem; font-weight: 800; color: #0284c7; white-space: nowrap; }
+    .status-pill { display: inline-flex; border-radius: 999px; padding: 0.25rem 0.6rem; font-size: 0.75rem; font-weight: 800; background: #fef3c7; color: #92400e; margin-left: 0.4rem; }
+    .status-pill.awaiting { background: #e0f2fe; color: #075985; }
+    .review-actions { display: flex; gap: 0.55rem; justify-content: flex-end; }
+    .review-actions button { border: 0; border-radius: 8px; padding: 0.7rem 0.85rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+    .approve-btn { background: #059669; color: #fff; }
+    .reject-btn { background: #fee2e2; color: #b91c1c; }
+    .empty-state { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 2rem; text-align: center; color: var(--text-muted); }
+    .proof-link { color: var(--primary); font-weight: 700; text-decoration: none; }
+
+    @media (max-width: 900px) {
+      .review-header { display: block; }
+      .secret-box { min-width: 0; margin-top: 1rem; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .review-item { grid-template-columns: 1fr; }
+      .review-actions { justify-content: stretch; }
+      .review-actions button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="Logo.png" alt="EmoBox Logo" style="height: 32px; object-fit: contain;">
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang Chủ</a>
+        <a href="plans.html" class="nav-link">Subscription</a>
+        <a href="calendar.html" class="nav-link">Đặt Lịch</a>
+        <a href="contact.html" class="nav-link">Liên Hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">
+          🛍️
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header">
+            <div class="user-avatar-sm">U</div>
+            <div>
+              <p class="user-name">Tài Khoản</p>
+              <p class="user-sub">Xem thông tin của bạn</p>
+            </div>
+          </div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">Hồ sơ</a>
+            <a href="order-history.html" class="user-menu-item">Lịch sử đơn hàng</a>
+            <a href="track-order.html" class="user-menu-item">Theo dõi đơn hàng</a>
+            <a href="wallet.html" class="user-menu-item">Ví EmoBox</a>
+            <a href="payment-review.html" class="user-menu-item active">Đối soát thanh toán</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container review-shell">
+    <section class="review-header">
+      <div>
+        <div class="review-kicker">Quản trị thanh toán</div>
+        <h1 class="review-title">Đối soát thanh toán</h1>
+        <p class="review-subtitle">Theo dõi các khoản chuyển khoản/QR đang chờ kiểm tra: yêu cầu nạp ví, đơn hàng và subscription. Khi xác nhận, hệ thống sẽ cập nhật DB, ví, lịch sử giao dịch và trạng thái đơn.</p>
+      </div>
+      <div class="secret-box">
+        <label class="form-label" for="reviewSecret">Mã đối soát</label>
+        <div class="secret-row">
+          <input id="reviewSecret" class="secret-input" type="password" placeholder="Nhập PAYMENT_WEBHOOK_SECRET" autocomplete="off">
+          <button class="btn btn-primary" type="button" onclick="loadReviews()">Tải</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <div class="summary-card"><span>Tổng chờ xử lý</span><strong id="countTotal">0</strong></div>
+      <div class="summary-card"><span>Nạp ví</span><strong id="countWallet">0</strong></div>
+      <div class="summary-card"><span>Đơn hàng</span><strong id="countOrders">0</strong></div>
+      <div class="summary-card"><span>Subscription</span><strong id="countSubscriptions">0</strong></div>
+    </section>
+
+    <section class="review-toolbar">
+      <div class="filter-tabs" id="filterTabs">
+        <button type="button" class="active" data-filter="all">Tất cả</button>
+        <button type="button" data-filter="wallet_deposit">Nạp ví</button>
+        <button type="button" data-filter="order">Đơn hàng</button>
+        <button type="button" data-filter="subscription">Subscription</button>
+      </div>
+      <button class="btn btn-ghost" type="button" onclick="loadReviews()">Làm mới</button>
+    </section>
+
+    <section id="reviewList" class="review-list">
+      <div class="empty-state">Nhập mã đối soát rồi bấm Tải để xem các giao dịch đang chờ.</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let reviewItems = [];
+    let activeFilter = 'all';
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function typeLabel(type) {
+      return {
+        wallet_deposit: 'Nạp ví',
+        order: 'Đơn hàng',
+        subscription: 'Subscription'
+      }[type] || type;
+    }
+
+    function statusLabel(status) {
+      return {
+        awaiting_transfer: 'Chờ chuyển khoản',
+        pending_review: 'Chờ đối soát',
+        submitted: 'Đã gửi thông tin',
+        active: 'Đã kích hoạt',
+        completed: 'Đã hoàn tất',
+        rejected: 'Không khớp'
+      }[status] || status || 'Chưa rõ';
+    }
+
+    function setCounts(counts) {
+      document.getElementById('countTotal').textContent = counts.total || 0;
+      document.getElementById('countWallet').textContent = counts.walletDeposits || 0;
+      document.getElementById('countOrders').textContent = counts.orders || 0;
+      document.getElementById('countSubscriptions').textContent = counts.subscriptions || 0;
+    }
+
+    async function reviewApi(action, payload) {
+      try {
+        const response = await fetch(`/api/payments/review/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload || {})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        return data;
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    }
+
+    function renderReviews() {
+      const list = document.getElementById('reviewList');
+      const items = activeFilter === 'all'
+        ? reviewItems
+        : reviewItems.filter(item => item.type === activeFilter);
+
+      if (!items.length) {
+        list.innerHTML = '<div class="empty-state">Không có giao dịch nào đang chờ trong nhóm này.</div>';
+        return;
+      }
+
+      list.innerHTML = items.map(item => {
+        const created = item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : '';
+        const proof = item.proofUrl
+          ? `<a class="proof-link" href="${item.proofUrl}" target="_blank" rel="noopener noreferrer">Xem biên lai</a>`
+          : 'Chưa có biên lai';
+        const awaitingClass = item.status === 'awaiting_transfer' ? ' awaiting' : '';
+
+        return `
+          <article class="review-item" data-type="${escapeHtml(item.type)}" data-reference="${escapeHtml(item.referenceId)}">
+            <div class="item-main">
+              <h3>${escapeHtml(typeLabel(item.type))}: ${escapeHtml(item.title)}
+                <span class="status-pill${awaitingClass}">${escapeHtml(statusLabel(item.status))}</span>
+              </h3>
+              <div class="item-meta">
+                Mã: <strong>${escapeHtml(item.referenceId)}</strong><br>
+                Tạo lúc: ${escapeHtml(created)}
+              </div>
+            </div>
+            <div class="item-detail">
+              <strong>${escapeHtml(item.user && item.user.name || 'Khách hàng')}</strong><br>
+              ${escapeHtml(item.user && item.user.email || '')}${item.user && item.user.phone ? ` • ${escapeHtml(item.user.phone)}` : ''}<br>
+              Mã giao dịch: ${escapeHtml(item.paymentReference || 'Chưa nhập')}<br>
+              ${proof}<br>
+              ${item.note ? `Ghi chú: ${escapeHtml(item.note)}` : ''}
+            </div>
+            <div>
+              <div class="item-amount">${formatPrice(item.amount || 0)}</div>
+              <div class="review-actions" style="margin-top:0.75rem;">
+                <button class="approve-btn" type="button" onclick="decideReview('${escapeHtml(item.type)}','${escapeHtml(item.referenceId)}','approve')">Xác nhận</button>
+                <button class="reject-btn" type="button" onclick="decideReview('${escapeHtml(item.type)}','${escapeHtml(item.referenceId)}','reject')">Không khớp</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadReviews() {
+      const secretInput = document.getElementById('reviewSecret');
+      const secret = secretInput.value.trim() || localStorage.getItem('emobox_payment_review_secret') || '';
+      if (!secret) {
+        showToast('Vui lòng nhập mã đối soát.');
+        return;
+      }
+
+      secretInput.value = secret;
+      const result = await reviewApi('list', { secret });
+      if (!result.ok) {
+        showToast(result.error || 'Không tải được danh sách đối soát.');
+        return;
+      }
+
+      localStorage.setItem('emobox_payment_review_secret', secret);
+      reviewItems = Array.isArray(result.items) ? result.items : [];
+      setCounts(result.counts || {});
+      renderReviews();
+    }
+
+    async function decideReview(type, referenceId, decision) {
+      const secret = document.getElementById('reviewSecret').value.trim() || localStorage.getItem('emobox_payment_review_secret') || '';
+      if (!secret) {
+        showToast('Vui lòng nhập mã đối soát.');
+        return;
+      }
+
+      const item = reviewItems.find(entry => entry.type === type && String(entry.referenceId) === String(referenceId));
+      const label = decision === 'approve' ? 'xác nhận đã nhận tiền' : 'đánh dấu không khớp';
+      if (!window.confirm(`Bạn chắc chắn muốn ${label} cho mã ${referenceId}?`)) return;
+
+      const paymentReference = window.prompt('Mã giao dịch/ngân hàng để lưu lại:', item && item.paymentReference || referenceId) || '';
+      const note = window.prompt('Ghi chú đối soát:', decision === 'approve' ? 'Đã đối soát thành công' : 'Thông tin chuyển khoản chưa khớp') || '';
+
+      const result = await reviewApi('decide', {
+        secret,
+        type,
+        referenceId,
+        decision,
+        paymentReference,
+        note
+      });
+
+      if (!result.ok) {
+        showToast(result.error || 'Không cập nhật được giao dịch.');
+        return;
+      }
+
+      showToast(decision === 'approve' ? 'Đã xác nhận thanh toán.' : 'Đã đánh dấu không khớp.');
+      await loadReviews();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedSecret = localStorage.getItem('emobox_payment_review_secret');
+      if (savedSecret) document.getElementById('reviewSecret').value = savedSecret;
+
+      document.querySelectorAll('#filterTabs button').forEach(button => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('#filterTabs button').forEach(item => item.classList.remove('active'));
+          button.classList.add('active');
+          activeFilter = button.dataset.filter;
+          renderReviews();
+        });
+      });
+
+      if (savedSecret) loadReviews();
+    });
+  </script>
+</body>
+</html>
