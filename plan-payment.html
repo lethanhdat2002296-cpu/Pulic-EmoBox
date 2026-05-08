@@ -57,21 +57,18 @@
       </div>
 
       <div class="payment-methods">
-        <label class="payment-opt active" onclick="selectPayment(this)">
-          <input type="radio" name="payment" value="card" checked>
+        <label class="payment-opt active">
+          <input type="radio" name="payment" value="bank_transfer" checked>
           <div class="payment-opt-content">
             <div class="payment-opt-label">
-              Thẻ Ngân Hàng (Visa, Mastercard...)
-              <span>💳</span>
+              Chuyển khoản ngân hàng / QR
+              <span>🏦</span>
             </div>
-            <div class="card-form">
-              <input type="text" id="bankCardNum" class="form-input" placeholder="Số thẻ (0000 0000 0000 0000)" pattern="^[\d\s]{16,19}$" title="Số thẻ phải gồm 16-19 chữ số">
-                <input type="text" id="bankCardExp" class="form-input" placeholder="MM/YY" style="flex: 1;" pattern="^(0[1-9]|1[0-2])\/?([0-9]{2})$" title="Tháng/Năm hết hạn hợp lệ (MM/YY)">
-                <input type="text" id="bankCardCvc" class="form-input" placeholder="CVC" style="width: 80px;" pattern="^[0-9]{3,4}$" title="Mã bảo mật gồm 3 hoặc 4 chữ số">
-              </div>
-              <input type="text" id="bankCardName" class="form-input" placeholder="Tên in trên thẻ" style="margin-bottom: 0;" pattern="^[a-zA-Z\s]+$" title="Tên in trên thẻ không dấu">
-              <div id="savedCardHint" style="display: none; color: #059669; font-size: 0.78rem; font-weight: 600; margin-top: 0.5rem;">Đã tự điền thẻ đã lưu.</div>
+            <div style="margin-top:0.75rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:0.85rem;color:#075985;font-size:0.85rem;line-height:1.45;">
+              EmoBox sẽ kích hoạt gói sau khi đối soát chuyển khoản. Không nhập hoặc lưu số thẻ trực tiếp trên website.
             </div>
+            <input type="text" id="subscriptionPaymentReference" class="form-input" placeholder="Mã giao dịch / nội dung chuyển khoản" style="margin-top:0.75rem;">
+            <input type="file" id="subscriptionProofFile" class="form-input" accept="image/*,.pdf">
           </div>
         </label>
       </div>
@@ -146,7 +143,6 @@
           <span>${formatPrice(newBalance)}</span>
         </div>
       `;
-      loadSavedBankCard();
     });
 
     function selectPayment(labelEl) {
@@ -156,38 +152,39 @@
 
     async function confirmPayment() {
       if (!user || !pending || !planDetails[pending]) return;
-      
-      const cardNum = document.getElementById('bankCardNum');
-      const cardExp = document.getElementById('bankCardExp');
-      const cardCvc = document.getElementById('bankCardCvc');
-      const cardName = document.getElementById('bankCardName');
-      
-      if (!cardNum.value.trim() || !cardExp.value.trim() || !cardCvc.value.trim() || !cardName.value.trim() || 
-          !cardNum.checkValidity() || !cardExp.checkValidity() || !cardCvc.checkValidity() || !cardName.checkValidity()) {
-        showToast('Vui lòng nhập đầy đủ thông tin thẻ ngân hàng hợp lệ!');
-        return;
-      }
-      
+
       const plan = planDetails[pending];
-      const bankCardResult = await EmoBoxApi.saveBankCard(user, {
-        cardNumber: cardNum.value,
-        expiry: cardExp.value,
-        holderName: cardName.value
+      const proofFile = document.getElementById('subscriptionProofFile').files[0];
+      let paymentProofUrl = '';
+      if (proofFile) {
+        if (proofFile.size > 900 * 1024) {
+          showToast('Biên lai tối đa 900KB. Vui lòng nén ảnh trước khi gửi.');
+          return;
+        }
+        paymentProofUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result || '');
+          reader.onerror = () => reject(new Error('Không đọc được file biên lai.'));
+          reader.readAsDataURL(proofFile);
+        }).catch(err => {
+          showToast(err.message);
+          return '';
+        });
+      }
+
+      const result = await EmoBoxApi.activateSubscription(user, pending, plan, 'bank_transfer', {
+        paymentReference: document.getElementById('subscriptionPaymentReference').value.trim(),
+        paymentProofUrl,
+        bankTransferNote: proofFile ? `Khách tải biên lai: ${proofFile.name}` : ''
       });
-      if (bankCardResult.error) {
-        showToast('Khong luu duoc the ngan hang: ' + bankCardResult.error);
+      if (!result.ok) {
+        showToast(result.error || 'Không gửi được yêu cầu kích hoạt gói.');
         return;
       }
-      
-      // Update user details
-      user.plan = pending;
-      user.balance = (user.balance || 0) + plan.price;
-      delete user.pendingPlan; // Clear pending plan
-      
+      user.userId = result.userId || user.userId;
       localStorage.setItem('emobox_user', JSON.stringify(user));
-      await EmoBoxApi.activateSubscription(user, pending, plan, 'card');
-      
-      showToast('🎉 Kích hoạt gói thành công! Bạn có thể sử dụng Ví và Đặt lịch.');
+
+      showToast(`Đã gửi yêu cầu kích hoạt gói #${result.subscriptionId}. EmoBox sẽ kích hoạt sau khi đối soát thanh toán.`);
       
       setTimeout(() => {
         window.location.href = 'wallet.html';
