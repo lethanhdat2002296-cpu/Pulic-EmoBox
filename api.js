@@ -54,19 +54,26 @@
     loginUser(email, password) {
       return request('/api/users/login', { email, password });
     },
-    activateSubscription(user, planCode, plan, paymentMethod) {
+    activateSubscription(user, planCode, plan, paymentMethod, paymentInfo) {
       return request('/api/subscriptions/activate', {
         user: compactUser(user),
         planCode,
         plan,
-        paymentMethod: paymentMethod || 'card'
+        paymentMethod: paymentMethod || 'bank_transfer',
+        paymentReference: paymentInfo && paymentInfo.paymentReference || '',
+        paymentProofUrl: paymentInfo && paymentInfo.paymentProofUrl || '',
+        bankTransferNote: paymentInfo && paymentInfo.bankTransferNote || ''
       });
     },
-    recordWalletDeposit(user, amount) {
+    recordWalletDeposit(user, amount, bankInfo) {
       return request('/api/wallet/deposit', {
         user: compactUser(user),
         amount: toNumber(amount, 0),
-        paymentMethod: 'bank'
+        paymentMethod: 'bank_transfer',
+        bankInfo: bankInfo || {},
+        paymentReference: bankInfo && bankInfo.paymentReference || '',
+        paymentProofUrl: bankInfo && bankInfo.paymentProofUrl || '',
+        bankTransferNote: bankInfo && bankInfo.bankTransferNote || ''
       });
     },
     recordWalletWithdrawal(user, amount, bankInfo) {
