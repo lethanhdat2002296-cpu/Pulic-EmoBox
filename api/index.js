@@ -161,6 +161,7 @@ function rowToEvent(row) {
 
 function rowToOrder(row) {
   const items = Array.isArray(row.items) ? row.items : [];
+  const tracking = Array.isArray(row.tracking_events) ? row.tracking_events : [];
   return {
     orderId: row.order_id,
     orderCode: row.order_code,
@@ -184,8 +185,40 @@ function rowToOrder(row) {
       message: row.personal_message || '',
       anonymousSender: Boolean(row.is_anonymous_sender)
     },
-    items
+    items,
+    tracking: tracking.map(event => ({
+      trackingId: event.trackingId,
+      eventType: event.eventType || '',
+      orderStatus: event.orderStatus || '',
+      paymentStatus: event.paymentStatus || '',
+      title: event.title || '',
+      message: event.message || '',
+      metadata: event.metadata || {},
+      createdAt: event.createdAt || ''
+    }))
   };
+}
+
+async function insertOrderTrackingEvent(client, event = {}) {
+  if (!event.orderId) return;
+  await client.query(
+    `
+    INSERT INTO "B30OrderTrackingEvents"
+      (order_id, user_id, event_type, order_status, payment_status, title, message, metadata)
+    VALUES
+      ($1, $2, $3, $4, $5, $6, $7, $8)
+    `,
+    [
+      event.orderId,
+      event.userId || null,
+      event.eventType || 'status',
+      event.orderStatus || null,
+      event.paymentStatus || null,
+      event.title || 'Cập nhật đơn hàng',
+      event.message || null,
+      event.metadata ? JSON.stringify(event.metadata) : null
+    ]
+  );
 }
 
 async function upsertSavedRecipient(client, userId, recipient = {}) {
@@ -992,6 +1025,23 @@ async function saveOrder(req, res) {
       );
 
       const savedOrder = orderResult.rows[0];
+      await insertOrderTrackingEvent(client, {
+        orderId: savedOrder.order_id,
+        userId: user.userId,
+        eventType: 'created',
+        orderStatus: 'processing',
+        paymentStatus,
+        title: 'Đã tạo đơn hàng',
+        message: paymentStatus === 'paid'
+          ? 'Đơn hàng đã được ghi nhận và thanh toán thành công.'
+          : 'Đơn hàng đã được ghi nhận và đang chờ thanh toán/đối soát.',
+        metadata: {
+          orderCode: savedOrder.order_code,
+          paymentMethod,
+          total
+        }
+      });
+
       const contact = order.contact || {};
       await client.query(
         `
@@ -1218,7 +1268,21 @@ async function queryOrders(client, whereSql, params) {
         ) ORDER BY oi.order_item_id ASC)
         FROM "B30OrderItems" oi
         WHERE oi.order_id = o.order_id
-      ), '[]'::json) AS items
+      ), '[]'::json) AS items,
+      COALESCE((
+        SELECT json_agg(json_build_object(
+          'trackingId', te.tracking_id,
+          'eventType', te.event_type,
+          'orderStatus', te.order_status,
+          'paymentStatus', te.payment_status,
+          'title', te.title,
+          'message', te.message,
+          'metadata', te.metadata,
+          'createdAt', te.created_at
+        ) ORDER BY te.created_at ASC, te.tracking_id ASC)
+        FROM "B30OrderTrackingEvents" te
+        WHERE te.order_id = o.order_id
+      ), '[]'::json) AS tracking_events
     FROM "B30Orders" o
     LEFT JOIN "B20OrderContacts" c ON c.order_id = o.order_id
     ${whereSql}
@@ -1256,27 +1320,37 @@ async function trackOrder(req, res) {
     const orderCodeInput = String(body.orderCode || '').trim();
     const email = normalizeEmail(body.email);
     const phone = String(body.phone || '').replace(/\s/g, '');
-    if (!orderCodeInput || (!email && !phone)) {
-      return res.status(400).json({ ok: false, error: 'Nhap ma don hang va email hoac so dien thoai.' });
+    if (!orderCodeInput) {
+      return res.status(400).json({ ok: false, error: 'Nhap ma don hang.' });
     }
 
     const result = await withClient(async client => {
       const params = [orderCodeInput.toUpperCase()];
-      let contactFilter = '';
-      if (email) {
+      const user = await resolveUser(client, body.user);
+      let ownerFilter = '';
+      if (user.userId) {
+        params.push(user.userId);
+        ownerFilter = `AND o.user_id = $${params.length}`;
+      } else if (email) {
         params.push(email);
-        contactFilter = `AND LOWER(c.recipient_email) = $${params.length}`;
-      } else {
+        ownerFilter = `AND LOWER(c.recipient_email) = $${params.length}`;
+      } else if (phone) {
         params.push(phone);
-        contactFilter = `AND REPLACE(c.recipient_phone, ' ', '') = $${params.length}`;
+        ownerFilter = `AND REPLACE(c.recipient_phone, ' ', '') = $${params.length}`;
+      } else {
+        return { order: null, missingIdentity: true };
       }
       const orders = await queryOrders(
         client,
-        `WHERE UPPER(o.order_code) = $1 ${contactFilter}`,
+        `WHERE UPPER(o.order_code) = $1 ${ownerFilter}`,
         params
       );
       return { order: orders[0] || null };
     });
+
+    if (result.missingIdentity) {
+      return res.status(400).json({ ok: false, error: 'Nhap email, so dien thoai hoac dang nhap de theo doi don hang.' });
+    }
 
     if (!result.order) {
       return res.status(404).json({ ok: false, error: 'Khong tim thay don hang phu hop.' });
@@ -1311,11 +1385,27 @@ async function confirmBankTransfer(req, res) {
             payment_status = CASE WHEN payment_status = 'paid' THEN payment_status ELSE 'pending_review' END,
             updated_at = NOW()
         WHERE UPPER(order_code) = $1
-        RETURNING order_code, payment_status
+        RETURNING order_id, user_id, order_code, payment_status, order_status
         `,
         [orderCodeInput, paymentReference, paymentProofUrl, bankTransferNote]
       );
-      return { updated: updated.rowCount > 0, orderCode: updated.rows[0] && updated.rows[0].order_code, paymentStatus: updated.rows[0] && updated.rows[0].payment_status };
+      if (updated.rowCount === 0) return { updated: false };
+      const order = updated.rows[0];
+      await insertOrderTrackingEvent(client, {
+        orderId: order.order_id,
+        userId: order.user_id,
+        eventType: 'bank_transfer_submitted',
+        orderStatus: order.order_status,
+        paymentStatus: order.payment_status,
+        title: 'Đã nhận thông tin chuyển khoản',
+        message: 'EmoBox đã nhận mã giao dịch/biên lai và đang đối soát thanh toán.',
+        metadata: {
+          paymentReference,
+          hasPaymentProof: Boolean(paymentProofUrl),
+          bankTransferNote
+        }
+      });
+      return { updated: true, orderCode: order.order_code, paymentStatus: order.payment_status };
     });
 
     if (!result.updated) {
@@ -1353,7 +1443,7 @@ async function paymentWebhook(req, res) {
             paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
             updated_at = NOW()
         WHERE UPPER(order_code) = $1
-        RETURNING order_id, order_code, payment_status, order_status, total_amount
+        RETURNING order_id, user_id, order_code, payment_status, order_status, total_amount
         `,
         [orderCodeInput, status, body.transactionId || body.paymentReference || '']
       );
@@ -1361,6 +1451,22 @@ async function paymentWebhook(req, res) {
       if (updated.rowCount === 0) return { updated: false };
 
       const order = updated.rows[0];
+      await insertOrderTrackingEvent(client, {
+        orderId: order.order_id,
+        userId: order.user_id,
+        eventType: status === 'paid' ? 'payment_paid' : 'payment_status_updated',
+        orderStatus: order.order_status,
+        paymentStatus: order.payment_status,
+        title: status === 'paid' ? 'Đã xác nhận thanh toán' : 'Đã cập nhật trạng thái thanh toán',
+        message: status === 'paid'
+          ? 'Thanh toán đã được xác nhận, EmoBox tiếp tục xử lý đơn hàng.'
+          : `Trạng thái thanh toán đã được cập nhật thành ${status}.`,
+        metadata: {
+          transactionId: body.transactionId || body.paymentReference || '',
+          webhookStatus: status
+        }
+      });
+
       await client.query(
         `
         UPDATE "B30GiftSchedules"
