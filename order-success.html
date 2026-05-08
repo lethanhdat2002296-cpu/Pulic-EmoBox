@@ -45,7 +45,8 @@
       awaiting_transfer: 'Trạng thái: Chờ chuyển khoản',
       pending_review: 'Trạng thái: Chờ EmoBox đối soát',
       pending: 'Trạng thái: Chờ thanh toán',
-      paid: 'Trạng thái: Đã thanh toán'
+       paid: 'Trạng thái: Đã thanh toán',
+      rejected: 'Trạng thái: Thanh toán chưa khớp'
     };
     document.getElementById('paymentStatus').textContent = statusMap[lastOrder.paymentStatus] || 'Trạng thái: Đang xử lý';
     document.getElementById('trackLink').href = 'track-order.html?code=' + encodeURIComponent(code);
