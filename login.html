@@ -90,20 +90,50 @@
   <script src="api.js"></script>
   <script src="app.js"></script>
   <script>
+    async function tryAdminLogin(email, password) {
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!res.ok) return null;
+        const data = await res.json().catch(() => null);
+        return data && data.token ? data : null;
+      } catch {
+        return null;
+      }
+    }
+
     async function handleLogin(e) {
       e.preventDefault();
-      const email = document.getElementById('loginEmail').value;
+      const email = document.getElementById('loginEmail').value.trim();
       const pass = document.getElementById('loginPass').value;
-      
+      const btn = e.target.querySelector('button[type="submit"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Đang đăng nhập...'; }
+
       try {
-        const response = await EmoBoxApi.loginUser(email, pass);
-        
-        if (response.error) {
-          throw new Error(response.error);
+        // Thử admin login trước (song song)
+        const [adminResult, userResponse] = await Promise.all([
+          tryAdminLogin(email, pass),
+          EmoBoxApi.loginUser(email, pass)
+        ]);
+
+        // Nếu là admin → lưu token và chuyển ngay sang admin.html
+        if (adminResult && adminResult.token) {
+          localStorage.setItem('emobox_admin_token', adminResult.token);
+          localStorage.setItem('emobox_admin_user', JSON.stringify(adminResult.admin || {}));
+          showToast('🔐 Đăng nhập Admin thành công!');
+          setTimeout(() => { window.location.href = 'admin.html'; }, 1000);
+          return;
         }
-        
-        if (response.skipped) {
-          // Lấy tài khoản từ localStorage nếu API tắt
+
+        // Không phải admin → xử lý login thường
+        if (userResponse.error) {
+          throw new Error(userResponse.error);
+        }
+
+        if (userResponse.skipped) {
           let user = JSON.parse(localStorage.getItem('emobox_user'));
           if (!user || user.email !== email) {
             throw new Error('Tài khoản chưa tồn tại!');
@@ -111,24 +141,26 @@
           finishLogin(user);
         } else {
           const user = {
-            userId: response.userId || null,
-            name: response.name || 'Khách Hàng',
-            email: response.email,
-            phone: response.phone || '',
-            address: response.address || '',
-            balance: response.balance || 0,
-            plan: response.plan || 'none',
-            pendingPlan: response.pendingPlan || null,
-            registeredAt: response.registeredAt || new Date().toISOString()
+            userId: userResponse.userId || null,
+            name: userResponse.name || 'Khách Hàng',
+            email: userResponse.email,
+            phone: userResponse.phone || '',
+            address: userResponse.address || '',
+            balance: userResponse.balance || 0,
+            plan: userResponse.plan || 'none',
+            pendingPlan: userResponse.pendingPlan || null,
+            registeredAt: userResponse.registeredAt || new Date().toISOString()
           };
           localStorage.setItem('emobox_user', JSON.stringify(user));
           finishLogin(user);
         }
       } catch (err) {
         showToast('⚠ ' + err.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập'; }
       }
     }
-    
+
     function finishLogin(user) {
       showToast('🎉 Đăng nhập thành công! Chào mừng bạn quay lại.');
       setTimeout(() => {
