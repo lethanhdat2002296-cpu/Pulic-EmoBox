@@ -51,6 +51,44 @@ function toggleUserMenu() {
   menu.classList.toggle('active');
 }
 
+function normalizeFooterLinks() {
+  const replacements = [
+    { text: 'Câu Hỏi Thường Gặp', href: 'faq.html' },
+    { text: 'Câu Hỏi Thường Gặp', href: 'faq.html' },
+    { text: 'Vận chuyển & Đổi trả', href: 'shipping-returns.html' },
+    { text: 'Theo dõi Đơn hàng', href: 'track-order.html' },
+    { text: 'Chính sách Bảo mật', href: 'privacy.html' },
+    { text: 'Điều khoản Dịch vụ', href: 'terms.html' }
+  ];
+
+  document.querySelectorAll('footer a').forEach(link => {
+    const label = link.textContent.trim();
+    const match = replacements.find(item => item.text === label);
+    if (match) link.href = match.href;
+    if (label === 'in') {
+      link.href = 'https://www.linkedin.com/company/emobox/';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = 'LinkedIn EmoBox';
+    }
+    if (label === 'ig') {
+      link.href = 'https://www.instagram.com/emobox.vn/';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = 'Instagram EmoBox';
+    }
+  });
+}
+
+function ensureUserMenuLink(userMenuBody, href, text) {
+  if (!userMenuBody || userMenuBody.querySelector(`a[href="${href}"]`)) return;
+  const link = document.createElement('a');
+  link.href = href;
+  link.className = 'user-menu-item';
+  link.textContent = text;
+  userMenuBody.appendChild(link);
+}
+
 // Xử lý click ra ngoài để đóng user menu
 document.addEventListener('click', (e) => {
   const userBtn = document.getElementById('userBtn');
@@ -114,6 +152,7 @@ function handleLogout(e) {
 // Khởi chạy khi load
 document.addEventListener('DOMContentLoaded', () => {
   updateCartBadge();
+  normalizeFooterLinks();
 
     // Update User Menu in Navbar across all pages
   const userMenuBody = document.querySelector('.user-menu-body');
@@ -138,6 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     userMenuBody.insertBefore(authLink, userMenuBody.firstChild);
+    ensureUserMenuLink(userMenuBody, 'order-history.html', '📜 Lịch sử đơn hàng');
+    ensureUserMenuLink(userMenuBody, 'track-order.html', '🔎 Theo dõi đơn hàng');
   }
 
   if (currentUser) {
