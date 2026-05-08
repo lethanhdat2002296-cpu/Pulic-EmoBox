@@ -133,18 +133,18 @@
       </div>
 
       <!-- Right Form -->
-      <form class="contact-form" onsubmit="event.preventDefault(); showToast('Tin nhắn đã được gửi! Chúng tôi sẽ phản hồi sớm.');">
+      <form class="contact-form" id="contactForm" onsubmit="event.preventDefault(); submitContactMessage();">
         <div class="form-group">
           <label>Họ và tên</label>
-          <input type="text" class="form-input" placeholder="Nguyễn Văn A" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
+          <input type="text" class="form-input" id="contactName" placeholder="Nguyễn Văn A" required minlength="2" pattern="^[\p{L}\s]+$" title="Tên chỉ bao gồm chữ cái và khoảng trắng">
         </div>
         <div class="form-group">
           <label>Địa chỉ Email</label>
-          <input type="email" class="form-input" placeholder="example@email.com" required>
+          <input type="email" class="form-input" id="contactEmail" placeholder="example@email.com" required>
         </div>
         <div class="form-group">
           <label>Chủ đề</label>
-          <select class="form-input" style="padding: 0.75rem 1rem;">
+          <select class="form-input" id="contactSubject" style="padding: 0.75rem 1rem;">
             <option>Tư vấn chọn quà</option>
             <option>Hỗ trợ đơn hàng</option>
             <option>Hợp tác kinh doanh</option>
@@ -153,9 +153,9 @@
         </div>
         <div class="form-group">
           <label>Lời nhắn</label>
-          <textarea class="form-input" placeholder="Bạn cần chúng tôi hỗ trợ điều gì?" required></textarea>
+          <textarea class="form-input" id="contactMessage" placeholder="Bạn cần chúng tôi hỗ trợ điều gì?" required></textarea>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; height: 56px; font-size: 1.1rem; margin-top: 1rem;">Gửi lời nhắn ngay</button>
+        <button type="submit" class="btn btn-primary" id="contactSubmitBtn" style="width: 100%; height: 56px; font-size: 1.1rem; margin-top: 1rem;">Gửi lời nhắn ngay</button>
       </form>
     </div>
   </main>
@@ -170,8 +170,8 @@
         <p class="footer-tagline">Gói tâm tình, gửi tâm giao</p>
         <div class="footer-socials">
           <a href="https://www.facebook.com/profile.php?id=61564729661320" target="_blank" class="social-btn">f</a>
-          <a href="#" class="social-btn">in</a>
-          <a href="#" class="social-btn">ig</a>
+          <a href="https://www.linkedin.com/company/emobox/" class="social-btn" target="_blank" rel="noopener noreferrer">in</a>
+          <a href="https://www.instagram.com/emobox.vn/" class="social-btn" target="_blank" rel="noopener noreferrer">ig</a>
         </div>
         <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
           <p style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
@@ -197,17 +197,17 @@
       <div class="footer-col">
         <h4>Hỗ trợ</h4>
         <ul>
-          <li><a href="#">Câu Hỏi Thường Gặp</a></li>
-          <li><a href="#">Vận chuyển &amp; Đổi trả</a></li>
+          <li><a href="faq.html">Câu Hỏi Thường Gặp</a></li>
+          <li><a href="shipping-returns.html">Vận chuyển &amp; Đổi trả</a></li>
           <li><a href="contact.html">Liên hệ</a></li>
-          <li><a href="#">Theo dõi Đơn hàng</a></li>
+          <li><a href="track-order.html">Theo dõi Đơn hàng</a></li>
         </ul>
       </div>
       <div class="footer-col">
         <h4>Chính sách</h4>
         <ul>
-          <li><a href="#">Chính sách Bảo mật</a></li>
-          <li><a href="#">Điều khoản Dịch vụ</a></li>
+          <li><a href="privacy.html">Chính sách Bảo mật</a></li>
+          <li><a href="terms.html">Điều khoản Dịch vụ</a></li>
         </ul>
       </div>
     </div>
@@ -221,5 +221,34 @@
   <script src="data.js"></script>
   <script src="api.js"></script>
   <script src="app.js"></script>
+  <script>
+    async function submitContactMessage() {
+      const form = document.getElementById('contactForm');
+      if (!form.reportValidity()) return;
+
+      const button = document.getElementById('contactSubmitBtn');
+      button.disabled = true;
+      button.textContent = 'Đang gửi...';
+
+      const payload = {
+        name: document.getElementById('contactName').value.trim(),
+        email: document.getElementById('contactEmail').value.trim(),
+        subject: document.getElementById('contactSubject').value,
+        message: document.getElementById('contactMessage').value.trim()
+      };
+
+      const result = await EmoBoxApi.sendContactMessage(payload);
+      button.disabled = false;
+      button.textContent = 'Gửi lời nhắn ngay';
+
+      if (!result.ok || result.error) {
+        showToast('Không gửi được lời nhắn: ' + (result.error || 'Lỗi không xác định'));
+        return;
+      }
+
+      form.reset();
+      showToast('Tin nhắn đã được lưu và gửi đến EmoBox. Chúng tôi sẽ phản hồi sớm.');
+    }
+  </script>
 </body>
 </html>
