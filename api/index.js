@@ -11,7 +11,14 @@ const {
   upsertUser,
   withClient
 } = require('../lib/db');
-const { sendGiftScheduleEmail, sendOrderEmails, sendRegistrationEmail } = require('../lib/email');
+const {
+  sendContactEmail,
+  sendGiftScheduleEmail,
+  sendGiftScheduleStatusEmail,
+  sendOrderEmails,
+  sendOrderStatusEmail,
+  sendRegistrationEmail
+} = require('../lib/email');
 
 function safeJson(value) {
   try {
@@ -152,6 +159,92 @@ function rowToEvent(row) {
   };
 }
 
+function rowToOrder(row) {
+  const items = Array.isArray(row.items) ? row.items : [];
+  return {
+    orderId: row.order_id,
+    orderCode: row.order_code,
+    subtotal: Number(row.subtotal || 0),
+    shippingFee: Number(row.shipping_fee || 0),
+    total: Number(row.total_amount || 0),
+    paymentMethod: row.payment_method || '',
+    paymentStatus: row.payment_status || '',
+    orderStatus: row.order_status || '',
+    paymentReference: row.payment_reference || '',
+    paymentProofUrl: row.payment_proof_url || '',
+    bankTransferNote: row.bank_transfer_note || '',
+    paidAt: toIso(row.paid_at),
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    contact: {
+      name: row.recipient_name || '',
+      phone: row.recipient_phone || '',
+      email: row.recipient_email || '',
+      address: row.shipping_address || '',
+      message: row.personal_message || '',
+      anonymousSender: Boolean(row.is_anonymous_sender)
+    },
+    items
+  };
+}
+
+async function upsertSavedRecipient(client, userId, recipient = {}) {
+  if (!userId) return;
+  const name = String(recipient.name || recipient.recipient || recipient.fullName || '').trim();
+  const phone = String(recipient.phone || '').trim();
+  const email = normalizeEmail(recipient.email);
+  const address = String(recipient.address || '').trim();
+  if (!name || !phone || !address) return;
+
+  await client.query(
+    `
+    INSERT INTO "B20SavedRecipients"
+      (user_id, full_name, phone, email, address, last_used_at)
+    VALUES
+      ($1, $2, $3, $4, $5, NOW())
+    ON CONFLICT (user_id, phone, address) DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      email = COALESCE(EXCLUDED.email, "B20SavedRecipients".email),
+      last_used_at = NOW(),
+      updated_at = NOW()
+    `,
+    [userId, name, phone, email || null, address]
+  );
+}
+
+async function debitWallet(client, userId, amount, fallbackBalance = 0) {
+  const debitAmount = toNumber(amount, 0);
+  if (!userId || debitAmount <= 0) return toNumber(fallbackBalance, 0);
+
+  const wallet = await client.query(
+    'SELECT balance FROM "B30WalletAccounts" WHERE user_id = $1 FOR UPDATE',
+    [userId]
+  );
+  const currentBalance = wallet.rowCount > 0
+    ? toNumber(wallet.rows[0].balance, 0)
+    : toNumber(fallbackBalance, 0);
+
+  if (currentBalance < debitAmount) {
+    const err = new Error('So du vi EmoBox khong du.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const balanceAfter = currentBalance - debitAmount;
+  await client.query(
+    `
+    INSERT INTO "B30WalletAccounts" (user_id, balance)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id) DO UPDATE SET
+      balance = EXCLUDED.balance,
+      updated_at = NOW()
+    `,
+    [userId, balanceAfter]
+  );
+
+  return balanceAfter;
+}
+
 function monthsForPlan(planCode) {
   if (planCode === '3-months') return 3;
   if (planCode === '6-months') return 6;
@@ -166,7 +259,7 @@ async function health(req, res) {
     const result = await query('SELECT 1 AS ok, current_database() AS database_name');
     return res.status(200).json({ ok: true, databaseName: result.rows[0].database_name });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 }
 
@@ -293,6 +386,13 @@ async function saveGiftSchedule(req, res) {
       );
 
       const recipientId = recipientResult.rows[0].recipient_id;
+      await upsertSavedRecipient(client, user.userId, {
+        name: eventData.recipient || 'Nguoi nhan',
+        phone: eventData.phone || '',
+        email: eventData.email || '',
+        address: eventData.address || ''
+      });
+
       const existingSchedule = await client.query(
         `
         SELECT schedule_id, paid
@@ -341,12 +441,14 @@ async function saveGiftSchedule(req, res) {
         ]
       );
 
+      let balanceAfter = null;
       if (paid && !wasPaid && paymentMethod === 'wallet') {
+        balanceAfter = await debitWallet(client, user.userId, amount, body.user && body.user.balance);
         await insertWalletTransaction(client, {
           userId: user.userId,
           type: 'gift_schedule_payment',
           amount: -amount,
-          balanceAfter: toNumber(body.user && body.user.balance, 0),
+          balanceAfter,
           paymentMethod,
           referenceType: 'gift_schedule',
           referenceId: localEventId,
@@ -355,12 +457,12 @@ async function saveGiftSchedule(req, res) {
         });
       }
 
-      return { userId: user.userId, localEventId, created: existingSchedule.rowCount === 0 };
+      return { userId: user.userId, localEventId, created: existingSchedule.rowCount === 0, balanceAfter };
     });
 
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 }
 
@@ -429,11 +531,17 @@ async function deleteGiftSchedule(req, res) {
           s.amount,
           s.paid,
           s.package_name,
+          s.package_json,
           s.order_id,
           o.order_code,
-          o.payment_method AS order_payment_method
+          o.payment_method AS order_payment_method,
+          r.full_name AS recipient_name,
+          r.phone AS recipient_phone,
+          r.email AS recipient_email,
+          r.address AS shipping_address
         FROM "B30GiftSchedules" s
         LEFT JOIN "B30Orders" o ON o.order_id = s.order_id
+        LEFT JOIN "B20GiftRecipients" r ON r.recipient_id = s.recipient_id
         WHERE s.user_id = $1
           AND s.local_event_id = $2
           AND s.deleted_at IS NULL
@@ -546,9 +654,24 @@ async function deleteGiftSchedule(req, res) {
         localEventId,
         deleted: true,
         refundedAmount,
-        balanceAfter
+        balanceAfter,
+        event: rowToEvent(schedule)
       };
     });
+
+    if (result.deleted && result.event) {
+      sendGiftScheduleStatusEmail({
+        user: body.user || {},
+        event: result.event,
+        localEventId: result.localEventId,
+        refundedAmount: result.refundedAmount,
+        title: 'Hủy lịch tặng quà thành công',
+        message: result.refundedAmount
+          ? 'Lịch tặng quà đã được hủy và số tiền đã được hoàn vào ví EmoBox.'
+          : 'Lịch tặng quà đã được hủy thành công.',
+        note: 'Quy tắc hủy: lịch chỉ được hủy trước ngày giao tối thiểu 5 ngày.'
+      }).catch(err => console.warn('[EmoBox Email] Khong gui duoc email huy lich:', err.message));
+    }
 
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {
@@ -848,7 +971,10 @@ async function saveOrder(req, res) {
     const shippingFee = toNumber(order.shippingFee, 0);
     const total = toNumber(order.total, subtotal + shippingFee);
     const paymentMethod = order.paymentMethod || 'card';
-    const paymentStatus = paymentMethod === 'cod' ? 'pending' : 'paid';
+    const paymentStatus = ['cod', 'bank_transfer'].includes(paymentMethod) ? 'pending' : 'paid';
+    const paymentReference = order.paymentReference || order.transferCode || '';
+    const paymentProofUrl = order.paymentProofUrl || order.paymentProofName || '';
+    const bankTransferNote = order.bankTransferNote || order.transferNote || '';
 
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
@@ -857,12 +983,12 @@ async function saveOrder(req, res) {
       const orderResult = await client.query(
         `
         INSERT INTO "B30Orders"
-          (user_id, order_code, subtotal, shipping_fee, total_amount, payment_method, payment_status, order_status)
+          (user_id, order_code, subtotal, shipping_fee, total_amount, payment_method, payment_status, order_status, payment_reference, payment_proof_url, bank_transfer_note, paid_at)
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, 'processing')
+          ($1, $2, $3, $4, $5, $6, $7, 'processing', $8, $9, $10, CASE WHEN $7 = 'paid' THEN NOW() ELSE NULL END)
         RETURNING order_id, order_code, payment_status
         `,
-        [user.userId, code, subtotal, shippingFee, total, paymentMethod, paymentStatus]
+        [user.userId, code, subtotal, shippingFee, total, paymentMethod, paymentStatus, paymentReference || null, paymentProofUrl || null, bankTransferNote || null]
       );
 
       const savedOrder = orderResult.rows[0];
@@ -885,6 +1011,7 @@ async function saveOrder(req, res) {
           Boolean(contact.anonymousSender)
         ]
       );
+      await upsertSavedRecipient(client, user.userId, contact);
 
       for (const item of items) {
         const unitPrice = toNumber(item.unitPrice || item.priceNum || item.pkgPrice, 0);
@@ -927,12 +1054,14 @@ async function saveOrder(req, res) {
         }
       }
 
+      let balanceAfter = null;
       if (paymentMethod === 'wallet' && user.userId) {
+        balanceAfter = await debitWallet(client, user.userId, total, body.user && body.user.balance);
         await insertWalletTransaction(client, {
           userId: user.userId,
           type: 'order_payment',
           amount: -total,
-          balanceAfter: toNumber(body.user && body.user.balance, 0),
+          balanceAfter,
           paymentMethod,
           referenceType: 'order',
           referenceId: savedOrder.order_code,
@@ -945,7 +1074,8 @@ async function saveOrder(req, res) {
         orderId: savedOrder.order_id,
         orderCode: savedOrder.order_code,
         paymentStatus: savedOrder.payment_status,
-        order: { subtotal, shippingFee, total, paymentMethod },
+        balanceAfter,
+        order: { subtotal, shippingFee, total, paymentMethod, paymentStatus, paymentReference, paymentProofUrl, bankTransferNote },
         contact,
         items,
         user: body.user || {}
@@ -964,8 +1094,371 @@ async function saveOrder(req, res) {
       orderId: result.orderId,
       orderCode: result.orderCode,
       paymentStatus: result.paymentStatus,
+      balanceAfter: result.balanceAfter,
       email
     });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+}
+
+async function saveContactMessage(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const message = body.message || {};
+    const name = String(message.name || '').trim();
+    const email = normalizeEmail(message.email);
+    const subject = String(message.subject || 'Lien he website').trim();
+    const content = String(message.message || '').trim();
+
+    if (!name || !email || !content) {
+      return res.status(400).json({ ok: false, error: 'Vui long nhap day du thong tin lien he.' });
+    }
+
+    const result = await withClient(async client => {
+      const saved = await client.query(
+        `
+        INSERT INTO "B20ContactMessages" (full_name, email, subject, message)
+        VALUES ($1, $2, $3, $4)
+        RETURNING message_id, created_at
+        `,
+        [name, email, subject, content]
+      );
+      return { messageId: saved.rows[0].message_id, createdAt: toIso(saved.rows[0].created_at) };
+    });
+
+    let emailResult = { sent: false, skipped: true };
+    try {
+      emailResult = await sendContactEmail({ name, email, subject, message: content });
+    } catch (err) {
+      emailResult = { sent: false, skipped: false, error: err.message };
+    }
+
+    return res.status(200).json({ ok: true, ...result, email: emailResult });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function listRecipients(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const result = await withClient(async client => {
+      const user = await resolveUser(client, body.user);
+      if (!user.userId) return { userId: null, recipients: [] };
+
+      const recipients = await client.query(
+        `
+        SELECT recipient_id, full_name, phone, email, address, last_used_at
+        FROM "B20SavedRecipients"
+        WHERE user_id = $1
+        ORDER BY last_used_at DESC
+        LIMIT 30
+        `,
+        [user.userId]
+      );
+
+      return {
+        userId: user.userId,
+        recipients: recipients.rows.map(row => ({
+          recipientId: row.recipient_id,
+          name: row.full_name,
+          phone: row.phone,
+          email: row.email || '',
+          address: row.address,
+          lastUsedAt: toIso(row.last_used_at)
+        }))
+      };
+    });
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function queryOrders(client, whereSql, params) {
+  const orders = await client.query(
+    `
+    SELECT
+      o.order_id,
+      o.order_code,
+      o.subtotal,
+      o.shipping_fee,
+      o.total_amount,
+      o.payment_method,
+      o.payment_status,
+      o.order_status,
+      o.payment_reference,
+      o.payment_proof_url,
+      o.bank_transfer_note,
+      o.paid_at,
+      o.created_at,
+      o.updated_at,
+      c.recipient_name,
+      c.recipient_phone,
+      c.recipient_email,
+      c.shipping_address,
+      c.personal_message,
+      c.is_anonymous_sender,
+      COALESCE((
+        SELECT json_agg(json_build_object(
+          'id', oi.product_code,
+          'name', oi.product_name,
+          'image', oi.image_path,
+          'unitPrice', oi.unit_price,
+          'quantity', oi.quantity,
+          'lineTotal', oi.line_total,
+          'isScheduledGift', oi.is_scheduled_gift,
+          'package', oi.package_json
+        ) ORDER BY oi.order_item_id ASC)
+        FROM "B30OrderItems" oi
+        WHERE oi.order_id = o.order_id
+      ), '[]'::json) AS items
+    FROM "B30Orders" o
+    LEFT JOIN "B20OrderContacts" c ON c.order_id = o.order_id
+    ${whereSql}
+    ORDER BY o.created_at DESC
+    LIMIT 100
+    `,
+    params
+  );
+  return orders.rows.map(rowToOrder);
+}
+
+async function listOrders(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const result = await withClient(async client => {
+      const user = await resolveUser(client, body.user);
+      if (!user.userId) return { userId: null, orders: [] };
+      const orders = await queryOrders(client, 'WHERE o.user_id = $1', [user.userId]);
+      return { userId: user.userId, orders };
+    });
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function trackOrder(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const orderCodeInput = String(body.orderCode || '').trim();
+    const email = normalizeEmail(body.email);
+    const phone = String(body.phone || '').replace(/\s/g, '');
+    if (!orderCodeInput || (!email && !phone)) {
+      return res.status(400).json({ ok: false, error: 'Nhap ma don hang va email hoac so dien thoai.' });
+    }
+
+    const result = await withClient(async client => {
+      const params = [orderCodeInput.toUpperCase()];
+      let contactFilter = '';
+      if (email) {
+        params.push(email);
+        contactFilter = `AND LOWER(c.recipient_email) = $${params.length}`;
+      } else {
+        params.push(phone);
+        contactFilter = `AND REPLACE(c.recipient_phone, ' ', '') = $${params.length}`;
+      }
+      const orders = await queryOrders(
+        client,
+        `WHERE UPPER(o.order_code) = $1 ${contactFilter}`,
+        params
+      );
+      return { order: orders[0] || null };
+    });
+
+    if (!result.order) {
+      return res.status(404).json({ ok: false, error: 'Khong tim thay don hang phu hop.' });
+    }
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function confirmBankTransfer(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const orderCodeInput = String(body.orderCode || '').trim().toUpperCase();
+    const paymentReference = String(body.paymentReference || '').trim();
+    const paymentProofUrl = String(body.paymentProofUrl || body.paymentProofName || '').trim();
+    const bankTransferNote = String(body.bankTransferNote || '').trim();
+    if (!orderCodeInput || (!paymentReference && !paymentProofUrl)) {
+      return res.status(400).json({ ok: false, error: 'Nhap ma don hang va thong tin chuyen khoan.' });
+    }
+
+    const result = await withClient(async client => {
+      const updated = await client.query(
+        `
+        UPDATE "B30Orders"
+        SET payment_reference = COALESCE(NULLIF($2, ''), payment_reference),
+            payment_proof_url = COALESCE(NULLIF($3, ''), payment_proof_url),
+            bank_transfer_note = COALESCE(NULLIF($4, ''), bank_transfer_note),
+            payment_status = CASE WHEN payment_status = 'paid' THEN payment_status ELSE 'pending_review' END,
+            updated_at = NOW()
+        WHERE UPPER(order_code) = $1
+        RETURNING order_code, payment_status
+        `,
+        [orderCodeInput, paymentReference, paymentProofUrl, bankTransferNote]
+      );
+      return { updated: updated.rowCount > 0, orderCode: updated.rows[0] && updated.rows[0].order_code, paymentStatus: updated.rows[0] && updated.rows[0].payment_status };
+    });
+
+    if (!result.updated) {
+      return res.status(404).json({ ok: false, error: 'Khong tim thay don hang.' });
+    }
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function paymentWebhook(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const expectedSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+    if (expectedSecret && body.secret !== expectedSecret) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized webhook' });
+    }
+
+    const orderCodeInput = String(body.orderCode || body.reference || '').trim().toUpperCase();
+    const status = String(body.status || 'paid').trim().toLowerCase();
+    if (!orderCodeInput) {
+      return res.status(400).json({ ok: false, error: 'Missing orderCode' });
+    }
+
+    const result = await withClient(async client => {
+      const updated = await client.query(
+        `
+        UPDATE "B30Orders"
+        SET payment_status = $2,
+            payment_reference = COALESCE(NULLIF($3, ''), payment_reference),
+            paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
+            updated_at = NOW()
+        WHERE UPPER(order_code) = $1
+        RETURNING order_id, order_code, payment_status, order_status, total_amount
+        `,
+        [orderCodeInput, status, body.transactionId || body.paymentReference || '']
+      );
+
+      if (updated.rowCount === 0) return { updated: false };
+
+      const order = updated.rows[0];
+      await client.query(
+        `
+        UPDATE "B30GiftSchedules"
+        SET paid = TRUE,
+            status = 'paid',
+            updated_at = NOW()
+        WHERE order_id = $1 AND $2 = 'paid'
+        `,
+        [order.order_id, status]
+      );
+
+      const orders = await queryOrders(client, 'WHERE o.order_id = $1', [order.order_id]);
+      return { updated: true, order: orders[0] || null };
+    });
+
+    if (!result.updated) {
+      return res.status(404).json({ ok: false, error: 'Khong tim thay don hang.' });
+    }
+
+    if (result.order && status === 'paid') {
+      sendOrderStatusEmail({
+        to: result.order.contact.email,
+        orderCode: result.order.orderCode,
+        order: result.order,
+        paymentStatus: 'paid',
+        orderStatus: result.order.orderStatus,
+        title: 'Thanh toán thành công',
+        subject: `EmoBox đã xác nhận thanh toán ${result.order.orderCode}`,
+        message: 'EmoBox đã xác nhận thanh toán cho đơn hàng của bạn.'
+      }).catch(err => console.warn('[EmoBox Email] Khong gui duoc email paid:', err.message));
+    }
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function upcomingOrderReminders(req, res) {
+  if (!['GET', 'POST'].includes(req.method)) {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  try {
+    const body = req.method === 'POST' ? getBody(req) : {};
+    const url = new URL(req.url, 'http://localhost');
+    const authSecret = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const suppliedSecret = body.secret || url.searchParams.get('secret') || req.headers['x-cron-secret'] || authSecret;
+    const expectedSecret = process.env.ORDER_REMINDER_SECRET || process.env.CRON_SECRET;
+    if (expectedSecret && suppliedSecret !== expectedSecret) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized reminder job' });
+    }
+
+    const schedules = await query(
+      `
+      SELECT
+        s.local_event_id,
+        s.gift_date,
+        s.package_name,
+        s.amount,
+        s.package_json,
+        r.full_name AS recipient_name,
+        r.phone AS recipient_phone,
+        r.email AS recipient_email,
+        r.address AS shipping_address,
+        u.email AS user_email
+      FROM "B30GiftSchedules" s
+      LEFT JOIN "B20GiftRecipients" r ON r.recipient_id = s.recipient_id
+      LEFT JOIN "B20Users" u ON u.user_id = s.user_id
+      WHERE s.deleted_at IS NULL
+        AND s.paid = TRUE
+        AND s.gift_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '2 days'
+      ORDER BY s.gift_date ASC
+      LIMIT 50
+      `
+    );
+
+    const results = [];
+    for (const row of schedules.rows) {
+      const event = rowToEvent(row);
+      const to = event.email || row.user_email;
+      try {
+        const email = await sendGiftScheduleStatusEmail({
+          to,
+          event,
+          localEventId: event.id,
+          title: 'Đơn quà sắp được giao',
+          subject: `EmoBox nhắc lịch giao quà ${event.id}`,
+          message: 'Lịch tặng quà của bạn sắp đến ngày giao. EmoBox đang chuẩn bị đơn quà thật chỉn chu.',
+          note: 'Nếu cần thay đổi thông tin, vui lòng liên hệ EmoBox sớm nhất.'
+        });
+        results.push({ localEventId: event.id, email });
+      } catch (err) {
+        results.push({ localEventId: event.id, error: err.message });
+      }
+    }
+
+    return res.status(200).json({ ok: true, count: results.length, results });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }
@@ -1006,7 +1499,12 @@ function emailStatusRoute(req, res) {
 
 const routes = {
   '/api/health': health,
+  '/api/contact': saveContactMessage,
   '/api/orders': saveOrder,
+  '/api/orders/confirm-bank-transfer': confirmBankTransfer,
+  '/api/orders/history': listOrders,
+  '/api/orders/reminders/upcoming': upcomingOrderReminders,
+  '/api/orders/track': trackOrder,
   '/api/bank-card/get': getBankCard,
   '/api/bank-card/save': saveBankCard,
   '/api/email/gift-schedule': giftScheduleEmail,
@@ -1015,6 +1513,8 @@ const routes = {
   '/api/gift-schedules': saveGiftSchedule,
   '/api/gift-schedules/delete': deleteGiftSchedule,
   '/api/gift-schedules/list': listGiftSchedules,
+  '/api/payments/webhook': paymentWebhook,
+  '/api/recipients/list': listRecipients,
   '/api/subscriptions/activate': activateSubscription,
   '/api/users/login': loginUser,
   '/api/users/upsert': upsertUserRoute,
