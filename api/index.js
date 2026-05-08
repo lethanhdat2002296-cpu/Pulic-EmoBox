@@ -278,6 +278,37 @@ async function debitWallet(client, userId, amount, fallbackBalance = 0) {
   return balanceAfter;
 }
 
+async function creditWallet(client, userId, amount, fallbackBalance = 0) {
+  const creditAmount = toNumber(amount, 0);
+  if (!userId || creditAmount <= 0) return toNumber(fallbackBalance, 0);
+
+  const wallet = await client.query(
+    'SELECT balance FROM "B30WalletAccounts" WHERE user_id = $1 FOR UPDATE',
+    [userId]
+  );
+  const currentBalance = wallet.rowCount > 0
+    ? toNumber(wallet.rows[0].balance, 0)
+    : toNumber(fallbackBalance, 0);
+  const balanceAfter = currentBalance + creditAmount;
+
+  await client.query(
+    `
+    INSERT INTO "B30WalletAccounts" (user_id, balance)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id) DO UPDATE SET
+      balance = EXCLUDED.balance,
+      updated_at = NOW()
+    `,
+    [userId, balanceAfter]
+  );
+
+  return balanceAfter;
+}
+
+function paymentRequestCode(prefix) {
+  return `${prefix}${orderCode().replace(/^EB/, '')}`;
+}
+
 function monthsForPlan(planCode) {
   if (planCode === '3-months') return 3;
   if (planCode === '6-months') return 6;
@@ -718,22 +749,42 @@ async function walletDeposit(req, res) {
   try {
     const body = getBody(req);
     const amount = Math.abs(toNumber(body.amount, 0));
+    if (amount <= 0) {
+      return res.status(400).json({ ok: false, error: 'So tien nap khong hop le.' });
+    }
+
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
-      const balanceAfter = toNumber(body.user && body.user.balance, amount);
+      const wallet = await client.query(
+        'SELECT balance FROM "B30WalletAccounts" WHERE user_id = $1 LIMIT 1',
+        [user.userId]
+      );
+      const currentBalance = Number(wallet.rows[0] && wallet.rows[0].balance || 0);
+      const bankInfo = body.bankInfo || {};
+      const requestCode = paymentRequestCode('WAL');
+      const paymentReference = String(body.paymentReference || bankInfo.paymentReference || '').trim();
+      const proofUrl = String(body.paymentProofUrl || bankInfo.paymentProofUrl || '').trim();
 
       await insertWalletTransaction(client, {
         userId: user.userId,
-        type: 'deposit',
+        type: 'deposit_request',
         amount,
-        balanceAfter,
+        balanceAfter: currentBalance,
         paymentMethod: body.paymentMethod || 'bank',
-        referenceType: 'wallet',
-        description: 'Nap tien vi EmoBox',
-        metadata: body.bankInfo || {}
+        referenceType: 'wallet_deposit',
+        referenceId: requestCode,
+        status: 'pending_review',
+        externalReference: paymentReference,
+        proofUrl,
+        description: 'Yeu cau nap tien vi EmoBox',
+        metadata: Object.assign({}, bankInfo, {
+          requestCode,
+          paymentReference,
+          bankTransferNote: body.bankTransferNote || bankInfo.bankTransferNote || ''
+        })
       });
 
-      return { userId: user.userId, balanceAfter };
+      return { userId: user.userId, requestCode, status: 'pending_review', balanceAfter: currentBalance };
     });
 
     return res.status(200).json({ ok: true, ...result });
@@ -795,6 +846,9 @@ async function walletHistory(req, res) {
           payment_method,
           reference_type,
           reference_id,
+          status,
+          external_reference,
+          proof_url,
           description,
           metadata,
           created_at
@@ -817,6 +871,9 @@ async function walletHistory(req, res) {
           paymentMethod: row.payment_method || '',
           referenceType: row.reference_type || '',
           referenceId: row.reference_id || '',
+          status: row.status || 'completed',
+          externalReference: row.external_reference || '',
+          proofUrl: row.proof_url || '',
           description: row.description || '',
           metadata: row.metadata || {},
           createdAt: toIso(row.created_at)
@@ -852,11 +909,12 @@ async function getBankCard(req, res) {
       if (card.rowCount === 0) return { userId: user.userId, card: null };
 
       const row = card.rows[0];
+      const maskedNumber = `**** **** **** ${row.card_last4}`;
       return {
         userId: user.userId,
         card: {
           holderName: row.cardholder_name,
-          cardNumber: row.card_number,
+          cardNumber: maskedNumber,
           last4: row.card_last4,
           expiryMonth: row.expiry_month,
           expiryYear: row.expiry_year,
@@ -911,14 +969,15 @@ async function saveBankCard(req, res) {
           card_brand = EXCLUDED.card_brand,
           updated_at = NOW()
         `,
-        [user.userId, holderName, cardNumber, cardNumber.slice(-4), expiry.month, expiry.year, brandFromNumber(cardNumber)]
+        [user.userId, holderName, `**** **** **** ${cardNumber.slice(-4)}`, cardNumber.slice(-4), expiry.month, expiry.year, brandFromNumber(cardNumber)]
       );
 
+      const maskedNumber = `**** **** **** ${cardNumber.slice(-4)}`;
       return {
         userId: user.userId,
         card: {
           holderName,
-          cardNumber,
+          cardNumber: maskedNumber,
           last4: cardNumber.slice(-4),
           expiryMonth: expiry.month,
           expiryYear: expiry.year,
@@ -943,6 +1002,13 @@ async function activateSubscription(req, res) {
     const plan = body.plan || {};
     const amount = toNumber(plan.price, 0);
     const months = monthsForPlan(planCode);
+    const paymentMethod = body.paymentMethod || 'bank_transfer';
+    const paymentReference = String(body.paymentReference || '').trim();
+    const paymentProofUrl = String(body.paymentProofUrl || '').trim();
+    const bankTransferNote = String(body.bankTransferNote || '').trim();
+    if (!planCode || amount <= 0 || months <= 0) {
+      return res.status(400).json({ ok: false, error: 'Goi thanh vien khong hop le.' });
+    }
 
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
@@ -953,38 +1019,42 @@ async function activateSubscription(req, res) {
       await client.query(
         `
         UPDATE "B20Users"
-        SET plan_code = $1,
-            pending_plan_code = NULL,
-            registered_at = $2,
+        SET pending_plan_code = $1,
             updated_at = NOW()
-        WHERE user_id = $3
+        WHERE user_id = $2
         `,
-        [planCode, startAt.toISOString(), user.userId]
+        [planCode, user.userId]
       );
 
-      await client.query(
+      const subscription = await client.query(
         `
         INSERT INTO "B30Subscriptions"
-          (user_id, plan_code, plan_name, amount, payment_method, status, start_at, end_at)
+          (user_id, plan_code, plan_name, amount, payment_method, status, payment_reference, payment_proof_url, bank_transfer_note, start_at, end_at)
         VALUES
-          ($1, $2, $3, $4, $5, 'active', $6, $7)
+          ($1, $2, $3, $4, $5, 'pending_review', $6, $7, $8, $9, $10)
+        RETURNING subscription_id, status
         `,
-        [user.userId, planCode, plan.name || planCode, amount, body.paymentMethod || 'card', startAt.toISOString(), endAt ? endAt.toISOString() : null]
+        [
+          user.userId,
+          planCode,
+          plan.name || planCode,
+          amount,
+          paymentMethod,
+          paymentReference || null,
+          paymentProofUrl || null,
+          bankTransferNote || null,
+          startAt.toISOString(),
+          endAt ? endAt.toISOString() : null
+        ]
       );
 
-      const balanceAfter = toNumber(body.user && body.user.balance, 0);
-      await insertWalletTransaction(client, {
+      return {
         userId: user.userId,
-        type: 'subscription_credit',
-        amount,
-        balanceAfter,
-        paymentMethod: body.paymentMethod || 'card',
-        referenceType: 'subscription',
-        referenceId: planCode,
-        description: plan.name || planCode
-      });
-
-      return { userId: user.userId, planCode, balanceAfter };
+        planCode,
+        subscriptionId: subscription.rows[0].subscription_id,
+        status: subscription.rows[0].status,
+        activated: false
+      };
     });
 
     return res.status(200).json({ ok: true, ...result });
@@ -1004,10 +1074,20 @@ async function saveOrder(req, res) {
     const shippingFee = toNumber(order.shippingFee, 0);
     const total = toNumber(order.total, subtotal + shippingFee);
     const paymentMethod = order.paymentMethod || 'card';
-    const paymentStatus = ['cod', 'bank_transfer'].includes(paymentMethod) ? 'pending' : 'paid';
     const paymentReference = order.paymentReference || order.transferCode || '';
     const paymentProofUrl = order.paymentProofUrl || order.paymentProofName || '';
     const bankTransferNote = order.bankTransferNote || order.transferNote || '';
+    if (paymentMethod === 'card') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Thanh toan the chua ket noi cong thanh toan that. Vui long chon chuyen khoan, COD hoac Vi EmoBox.'
+      });
+    }
+    const paymentStatus = paymentMethod === 'wallet'
+      ? 'paid'
+      : paymentMethod === 'bank_transfer'
+        ? (paymentReference || paymentProofUrl ? 'pending_review' : 'awaiting_transfer')
+        : 'pending';
 
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
@@ -1424,17 +1504,152 @@ async function paymentWebhook(req, res) {
   try {
     const body = getBody(req);
     const expectedSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-    if (expectedSecret && body.secret !== expectedSecret) {
+    const authSecret = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const suppliedSecret = body.secret || req.headers['x-payment-secret'] || authSecret;
+    if (!expectedSecret) {
+      return res.status(503).json({ ok: false, error: 'PAYMENT_WEBHOOK_SECRET is not configured' });
+    }
+    if (suppliedSecret !== expectedSecret) {
       return res.status(401).json({ ok: false, error: 'Unauthorized webhook' });
     }
 
-    const orderCodeInput = String(body.orderCode || body.reference || '').trim().toUpperCase();
+    const referenceType = String(body.referenceType || body.type || 'order').trim().toLowerCase();
+    const referenceId = String(body.referenceId || body.requestCode || body.subscriptionId || body.orderCode || body.reference || '').trim();
+    const providerEventId = String(body.eventId || body.providerEventId || '').trim();
     const status = String(body.status || 'paid').trim().toLowerCase();
-    if (!orderCodeInput) {
-      return res.status(400).json({ ok: false, error: 'Missing orderCode' });
+    if (!referenceId && referenceType !== 'order') {
+      return res.status(400).json({ ok: false, error: 'Missing payment reference' });
     }
 
     const result = await withClient(async client => {
+      if (providerEventId) {
+        const eventInsert = await client.query(
+          `
+          INSERT INTO "B30PaymentWebhookEvents"
+            (provider_event_id, reference_type, reference_id, payment_status, payload)
+          VALUES
+            ($1, $2, $3, $4, $5)
+          ON CONFLICT (provider_event_id) DO NOTHING
+          RETURNING event_id
+          `,
+          [providerEventId, referenceType, referenceId || null, status, JSON.stringify(body)]
+        );
+        if (eventInsert.rowCount === 0) {
+          return { updated: true, duplicate: true, referenceType, referenceId };
+        }
+      }
+
+      if (referenceType === 'wallet_deposit') {
+        const tx = await client.query(
+          `
+          SELECT transaction_id, user_id, amount, status
+          FROM "B30WalletTransactions"
+          WHERE reference_type = 'wallet_deposit'
+            AND reference_id = $1
+          FOR UPDATE
+          `,
+          [referenceId]
+        );
+        if (tx.rowCount === 0) return { updated: false };
+
+        const row = tx.rows[0];
+        if (row.status === 'completed' && status === 'paid') {
+          return { updated: true, referenceType, referenceId, alreadyCompleted: true };
+        }
+
+        let balanceAfter = null;
+        if (status === 'paid') {
+          balanceAfter = await creditWallet(client, row.user_id, row.amount);
+        }
+
+        await client.query(
+          `
+          UPDATE "B30WalletTransactions"
+          SET status = $2,
+              balance_after = COALESCE($3, balance_after),
+              external_reference = COALESCE(NULLIF($4, ''), external_reference),
+              updated_at = NOW()
+          WHERE transaction_id = $1
+          `,
+          [row.transaction_id, status === 'paid' ? 'completed' : status, balanceAfter, body.transactionId || body.paymentReference || '']
+        );
+
+        return { updated: true, referenceType, referenceId, balanceAfter };
+      }
+
+      if (referenceType === 'subscription') {
+        const subscriptionId = Number(referenceId);
+        if (!subscriptionId) return { updated: false };
+
+        const subResult = await client.query(
+          `
+          SELECT subscription_id, user_id, plan_code, plan_name, amount, status, paid_at, end_at
+          FROM "B30Subscriptions"
+          WHERE subscription_id = $1
+          FOR UPDATE
+          `,
+          [subscriptionId]
+        );
+        if (subResult.rowCount === 0) return { updated: false };
+        const subscription = subResult.rows[0];
+
+        if (subscription.status === 'active' && subscription.paid_at && status === 'paid') {
+          return { updated: true, referenceType, referenceId, alreadyCompleted: true };
+        }
+
+        await client.query(
+          `
+          UPDATE "B30Subscriptions"
+          SET status = $2,
+              payment_reference = COALESCE(NULLIF($3, ''), payment_reference),
+              paid_at = CASE WHEN $2 = 'active' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
+              updated_at = NOW()
+          WHERE subscription_id = $1
+          `,
+          [
+            subscriptionId,
+            status === 'paid' ? 'active' : status,
+            body.transactionId || body.paymentReference || ''
+          ]
+        );
+
+        let balanceAfter = null;
+        if (status === 'paid') {
+          await client.query(
+            `
+            UPDATE "B20Users"
+            SET plan_code = $1,
+                pending_plan_code = NULL,
+                registered_at = NOW(),
+                updated_at = NOW()
+            WHERE user_id = $2
+            `,
+            [subscription.plan_code, subscription.user_id]
+          );
+          balanceAfter = await creditWallet(client, subscription.user_id, subscription.amount);
+          await insertWalletTransaction(client, {
+            userId: subscription.user_id,
+            type: 'subscription_credit',
+            amount: subscription.amount,
+            balanceAfter,
+            paymentMethod: 'bank_transfer',
+            referenceType: 'subscription',
+            referenceId: String(subscriptionId),
+            status: 'completed',
+            externalReference: body.transactionId || body.paymentReference || '',
+            description: subscription.plan_name || subscription.plan_code,
+            metadata: { subscriptionId, planCode: subscription.plan_code }
+          });
+        }
+
+        return { updated: true, referenceType, referenceId, balanceAfter };
+      }
+
+      const orderCodeInput = String(body.orderCode || body.reference || referenceId || '').trim().toUpperCase();
+      if (!orderCodeInput) {
+        return { updated: false, missingOrderCode: true };
+      }
+
       const updated = await client.query(
         `
         UPDATE "B30Orders"
@@ -1479,11 +1694,15 @@ async function paymentWebhook(req, res) {
       );
 
       const orders = await queryOrders(client, 'WHERE o.order_id = $1', [order.order_id]);
-      return { updated: true, order: orders[0] || null };
+      return { updated: true, referenceType: 'order', referenceId: order.order_code, order: orders[0] || null };
     });
 
+    if (result.missingOrderCode) {
+      return res.status(400).json({ ok: false, error: 'Missing orderCode' });
+    }
+
     if (!result.updated) {
-      return res.status(404).json({ ok: false, error: 'Khong tim thay don hang.' });
+      return res.status(404).json({ ok: false, error: 'Khong tim thay giao dich.' });
     }
 
     if (result.order && status === 'paid') {
