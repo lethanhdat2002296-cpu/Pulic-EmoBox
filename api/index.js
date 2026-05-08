@@ -111,6 +111,26 @@ function dateOnly(value) {
   return String(value).slice(0, 10);
 }
 
+const VIETNAM_TZ_OFFSET_MS = 7 * 60 * 60 * 1000;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function vietnamTodayDateString() {
+  return new Date(Date.now() + VIETNAM_TZ_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function parseDateOnlyUtc(value) {
+  const parts = dateOnly(value).split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+  return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+}
+
+function daysFromVietnamToday(value) {
+  const target = parseDateOnlyUtc(value);
+  const today = parseDateOnlyUtc(vietnamTodayDateString());
+  if (target === null || today === null) return 0;
+  return Math.floor((target - today) / MS_PER_DAY);
+}
+
 function rowToEvent(row) {
   const payload = row.package_json && typeof row.package_json === 'object' ? row.package_json : {};
   return {
@@ -235,6 +255,13 @@ async function saveGiftSchedule(req, res) {
     const paid = Boolean(eventData.paid);
     const paymentMethod = body.paymentMethod || 'bank';
 
+    if (daysFromVietnamToday(eventData.date || new Date().toISOString().slice(0, 10)) < 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Khong the dat lich cho ngay da qua.'
+      });
+    }
+
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
       if (!user.userId || !localEventId) {
@@ -268,7 +295,7 @@ async function saveGiftSchedule(req, res) {
       const recipientId = recipientResult.rows[0].recipient_id;
       const existingSchedule = await client.query(
         `
-        SELECT schedule_id
+        SELECT schedule_id, paid
         FROM "B30GiftSchedules"
         WHERE user_id = $1
           AND local_event_id = $2
@@ -276,6 +303,7 @@ async function saveGiftSchedule(req, res) {
         `,
         [user.userId, localEventId]
       );
+      const wasPaid = existingSchedule.rowCount > 0 && Boolean(existingSchedule.rows[0].paid);
 
       await client.query(
         `
@@ -313,7 +341,7 @@ async function saveGiftSchedule(req, res) {
         ]
       );
 
-      if (paid && paymentMethod === 'wallet') {
+      if (paid && !wasPaid && paymentMethod === 'wallet') {
         await insertWalletTransaction(client, {
           userId: user.userId,
           type: 'gift_schedule_payment',
@@ -387,20 +415,139 @@ async function deleteGiftSchedule(req, res) {
     const body = getBody(req);
     const result = await withClient(async client => {
       const user = await resolveUser(client, body.user);
-      if (user.userId && body.localEventId) {
-        await client.query(
-          `
-          UPDATE "B30GiftSchedules"
-          SET deleted_at = NOW(),
-              updated_at = NOW(),
-              status = 'deleted'
-          WHERE user_id = $1 AND local_event_id = $2
-          `,
-          [user.userId, body.localEventId]
-        );
+      const localEventId = body.localEventId || null;
+      if (!user.userId || !localEventId) {
+        return { userId: user.userId, localEventId, deleted: false, refundedAmount: 0 };
       }
 
-      return { userId: user.userId, localEventId: body.localEventId || null };
+      const scheduleResult = await client.query(
+        `
+        SELECT
+          s.schedule_id,
+          s.local_event_id,
+          s.gift_date,
+          s.amount,
+          s.paid,
+          s.package_name,
+          s.order_id,
+          o.order_code,
+          o.payment_method AS order_payment_method
+        FROM "B30GiftSchedules" s
+        LEFT JOIN "B30Orders" o ON o.order_id = s.order_id
+        WHERE s.user_id = $1
+          AND s.local_event_id = $2
+          AND s.deleted_at IS NULL
+        LIMIT 1
+        FOR UPDATE OF s
+        `,
+        [user.userId, localEventId]
+      );
+
+      if (scheduleResult.rowCount === 0) {
+        return { userId: user.userId, localEventId, deleted: false, refundedAmount: 0 };
+      }
+
+      const schedule = scheduleResult.rows[0];
+      if (daysFromVietnamToday(schedule.gift_date) < 5) {
+        return {
+          userId: user.userId,
+          localEventId,
+          deleted: false,
+          blocked: true,
+          error: 'Chi co the huy lich truoc ngay giao toi thieu 5 ngay.'
+        };
+      }
+
+      let refundedAmount = 0;
+      let balanceAfter = null;
+      const amount = Math.abs(toNumber(schedule.amount, 0));
+      const isPaidByWallet = Boolean(schedule.paid) && (
+        schedule.order_payment_method === 'wallet' ||
+        (await client.query(
+          `
+          SELECT transaction_id
+          FROM "B30WalletTransactions"
+          WHERE user_id = $1
+            AND transaction_type = 'gift_schedule_payment'
+            AND reference_type = 'gift_schedule'
+            AND reference_id = $2
+          LIMIT 1
+          `,
+          [user.userId, localEventId]
+        )).rowCount > 0
+      );
+
+      if (isPaidByWallet && amount > 0) {
+        const existingRefund = await client.query(
+          `
+          SELECT transaction_id
+          FROM "B30WalletTransactions"
+          WHERE user_id = $1
+            AND transaction_type = 'gift_schedule_refund'
+            AND reference_type = 'gift_schedule'
+            AND reference_id = $2
+          LIMIT 1
+          `,
+          [user.userId, localEventId]
+        );
+
+        if (existingRefund.rowCount === 0) {
+          const wallet = await client.query(
+            'SELECT balance FROM "B30WalletAccounts" WHERE user_id = $1 FOR UPDATE',
+            [user.userId]
+          );
+          const currentBalance = toNumber(wallet.rows[0] && wallet.rows[0].balance, 0);
+          refundedAmount = amount;
+          balanceAfter = currentBalance + refundedAmount;
+
+          await client.query(
+            `
+            INSERT INTO "B30WalletAccounts" (user_id, balance)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET
+              balance = EXCLUDED.balance,
+              updated_at = NOW()
+            `,
+            [user.userId, balanceAfter]
+          );
+
+          await insertWalletTransaction(client, {
+            userId: user.userId,
+            type: 'gift_schedule_refund',
+            amount: refundedAmount,
+            balanceAfter,
+            paymentMethod: 'wallet',
+            referenceType: 'gift_schedule',
+            referenceId: localEventId,
+            description: schedule.package_name ? `Hoan tien huy ${schedule.package_name}` : 'Hoan tien huy lich tang qua',
+            metadata: {
+              localEventId,
+              scheduleId: schedule.schedule_id,
+              orderId: schedule.order_id || null,
+              orderCode: schedule.order_code || null
+            }
+          });
+        }
+      }
+
+      await client.query(
+        `
+        UPDATE "B30GiftSchedules"
+        SET deleted_at = NOW(),
+            updated_at = NOW(),
+            status = 'deleted'
+        WHERE user_id = $1 AND local_event_id = $2
+        `,
+        [user.userId, localEventId]
+      );
+
+      return {
+        userId: user.userId,
+        localEventId,
+        deleted: true,
+        refundedAmount,
+        balanceAfter
+      };
     });
 
     return res.status(200).json({ ok: true, ...result });
