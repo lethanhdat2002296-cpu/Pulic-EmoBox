@@ -134,15 +134,17 @@
         user: compactUser(user)
       });
     },
-    trackOrder(orderCode, email, phone) {
+    trackOrder(orderCode, email, phone, user) {
       return request('/api/orders/track', {
+        user: compactUser(user),
         orderCode,
         email: email || '',
         phone: phone || ''
       });
     },
-    confirmBankTransfer(orderCode, payload) {
+    confirmBankTransfer(orderCode, payload, user) {
       return request('/api/orders/confirm-bank-transfer', Object.assign({
+        user: compactUser(user),
         orderCode
       }, payload || {}));
     },
