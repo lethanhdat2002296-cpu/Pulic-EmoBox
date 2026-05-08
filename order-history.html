@@ -25,7 +25,7 @@
   <script>
     let loadedOrders = [];
     function paymentLabel(value) {
-      const map = { paid: 'Đã thanh toán', pending: 'Chờ thanh toán', pending_review: 'Chờ đối soát' };
+      const map = { paid: 'Đã thanh toán', pending: 'Chờ thanh toán', awaiting_transfer: 'Chờ chuyển khoản', pending_review: 'Chờ đối soát' };
       return map[value] || value || 'Chưa rõ';
     }
 
