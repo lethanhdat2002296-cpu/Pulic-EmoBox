@@ -1183,13 +1183,6 @@ async function saveOrder(req, res) {
     const paymentProofUrl = order.paymentProofUrl || order.paymentProofName || '';
     const bankTransferNote = order.bankTransferNote || order.transferNote || '';
     const voucherCode = normalizeVoucherCode(order.voucherCode || order.voucher && order.voucher.code);
-    if (paymentMethod === 'card') {
-      return res.status(400).json({
-        ok: false,
-        error: 'Thanh toan the chua ket noi cong thanh toan that. Vui long chon chuyen khoan, COD hoac Vi EmoBox.'
-      });
-    }
-
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
       const code = orderCode();
