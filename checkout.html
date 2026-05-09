@@ -296,10 +296,15 @@
 
           <div class="form-group" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border);">
             <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: #334155; display: block;">Voucher / Khuyến mãi</label>
-            <select id="voucherSelect" class="form-input" onchange="updateTotal()">
+            <select id="voucherSelect" class="form-input" onchange="updateTotal()" style="display:none;">
               <option value="">Không áp dụng</option>
               <option value="10">Giảm 10% (VOUCHER10)</option>
             </select>
+            <div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
+              <input type="text" id="voucherCodeInput" class="form-input" placeholder="Nhap ma voucher" style="text-transform:uppercase;">
+              <button type="button" class="btn btn-primary" onclick="applyVoucherCode()" style="white-space:nowrap;">Ap dung</button>
+            </div>
+            <div id="voucherStatus" style="font-size:0.78rem; color:var(--text-muted); margin-top:0.5rem;"></div>
           </div>
 
           <div class="calc-row">
@@ -339,7 +344,55 @@
     let checkoutFinalTotal = 0;
     let checkoutShippingFee = 0;
     let checkoutDiscount = 0;
+    let appliedVoucher = null;
     let savedRecipients = [];
+
+    function normalizeVoucherCode(value) {
+      return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+    }
+
+    function setVoucherStatus(message, color) {
+      const status = document.getElementById('voucherStatus');
+      if (!status) return;
+      status.textContent = message || '';
+      status.style.color = color || 'var(--text-muted)';
+    }
+
+    function clearAppliedVoucher(message) {
+      appliedVoucher = null;
+      checkoutDiscount = 0;
+      setVoucherStatus(message || '', 'var(--text-muted)');
+      updateTotal();
+    }
+
+    async function applyVoucherCode() {
+      const input = document.getElementById('voucherCodeInput');
+      const code = normalizeVoucherCode(input && input.value);
+      if (input) input.value = code;
+      if (!code) {
+        clearAppliedVoucher('Chua nhap ma voucher.');
+        return;
+      }
+      if (!window.EmoBoxApi || !EmoBoxApi.validateVoucher) {
+        clearAppliedVoucher('Chua ket noi duoc API voucher.');
+        return;
+      }
+
+      setVoucherStatus('Dang kiem tra voucher...', '#0284c7');
+      const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
+      const result = await EmoBoxApi.validateVoucher(code, user, checkoutCartTotal);
+      if (!result.ok || !result.valid) {
+        appliedVoucher = null;
+        checkoutDiscount = 0;
+        updateTotal();
+        setVoucherStatus(result.error || 'Ma voucher khong hop le.', '#ef4444');
+        return;
+      }
+
+      appliedVoucher = result.voucher;
+      updateTotal();
+      setVoucherStatus(`Da ap dung ${appliedVoucher.code}: giam ${appliedVoucher.discountPercent}%`, '#059669');
+    }
 
     function updateTotal() {
       const user = JSON.parse(localStorage.getItem('emobox_user'));
@@ -365,10 +418,10 @@
 
       let tempTotal = checkoutCartTotal + checkoutShippingFee;
 
-      const voucherSelect = document.getElementById('voucherSelect');
       checkoutDiscount = 0;
-      if (voucherSelect && voucherSelect.value === '10') {
-         checkoutDiscount = checkoutCartTotal * 0.1;
+      if (appliedVoucher && appliedVoucher.discountPercent) {
+         checkoutDiscount = Math.floor(checkoutCartTotal * Number(appliedVoucher.discountPercent || 0) / 100);
+         appliedVoucher.discountAmount = checkoutDiscount;
       }
       
       const discountRow = document.getElementById('discountRow');
@@ -590,6 +643,18 @@
         const input = document.getElementById(id);
         if (input) input.addEventListener('change', () => applySavedRecipient(input.value));
       });
+      const voucherInput = document.getElementById('voucherCodeInput');
+      if (voucherInput) {
+        voucherInput.addEventListener('input', () => {
+          const typedCode = normalizeVoucherCode(voucherInput.value);
+          if (appliedVoucher && typedCode !== appliedVoucher.code) {
+            appliedVoucher = null;
+            checkoutDiscount = 0;
+            setVoucherStatus('Ma voucher da thay doi, bam Ap dung de kiem tra lai.', 'var(--text-muted)');
+            updateTotal();
+          }
+        });
+      }
 
       checkWalletWarning();
     }
@@ -673,6 +738,14 @@
       }
 
       const selectedPayment = document.querySelector('input[name="payment"]:checked').value;
+      const typedVoucherCode = normalizeVoucherCode(document.getElementById('voucherCodeInput') && document.getElementById('voucherCodeInput').value);
+      if (typedVoucherCode && (!appliedVoucher || appliedVoucher.code !== typedVoucherCode)) {
+        await applyVoucherCode();
+        if (!appliedVoucher || appliedVoucher.code !== typedVoucherCode) {
+          showToast('âš  Vui long kiem tra voucher truoc khi thanh toan.');
+          return;
+        }
+      }
 
       if (selectedPayment === 'card') {
         const cardInputs = document.querySelectorAll('.card-form .form-input');
@@ -770,6 +843,8 @@
         subtotal: checkoutCartTotal,
         shippingFee: checkoutShippingFee,
         discount: checkoutDiscount,
+        voucherCode: appliedVoucher && appliedVoucher.code || '',
+        voucher: appliedVoucher,
         total: checkoutFinalTotal,
         paymentMethod: selectedPayment,
         paymentReference: bankTransfer.paymentReference || '',
