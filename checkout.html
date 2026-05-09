@@ -213,14 +213,14 @@
             </label>
             
             <!-- Credit Card -->
-            <label class="payment-opt" style="opacity:0.62;cursor:not-allowed;">
-              <input type="radio" name="payment" value="card" disabled>
+            <label class="payment-opt" onclick="selectPayment(this)">
+              <input type="radio" name="payment" value="card">
               <div class="payment-opt-content">
                 <div class="payment-opt-label">
-                  Thẻ Ngân Hàng (sắp kết nối cổng thanh toán)
+                  Thẻ Ngân Hàng (lưu thông tin thẻ)
                   <span style="color: #0ea5e9; font-size: 1.2rem;">💳</span>
                 </div>
-                <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;">EmoBox chưa xử lý thẻ trực tiếp. Vui lòng chọn COD, chuyển khoản hoặc Ví EmoBox.</div>
+                <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;">EmoBox chưa kết nối cổng thanh toán thẻ. Hệ thống chỉ lưu thông tin thẻ đã che số để hỗ trợ lần sau, không lưu CVV.</div>
                 
                 <div class="card-form">
                   <div class="form-group" style="margin-bottom: 1rem;">
@@ -232,9 +232,9 @@
                       <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">Ngày hết hạn</label>
                       <input type="text" id="bankCardExpiry" class="form-input" placeholder="MM/YY" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;" pattern="^(0[1-9]|1[0-2])\/?([0-9]{2})$" title="Tháng/Năm hết hạn hợp lệ (MM/YY)">
                     </div>
-                    <div>
+                    <div style="display:none;">
                       <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; display: block;">CVC/CVV</label>
-                      <input type="text" id="bankCardCvv" class="form-input" placeholder="123" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;" pattern="^[0-9]{3,4}$" title="Mã bảo mật gồm 3 hoặc 4 chữ số">
+                      <input type="text" id="bankCardCvv" class="form-input" data-card-optional="true" disabled placeholder="123" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;" pattern="^[0-9]{3,4}$" title="Mã bảo mật gồm 3 hoặc 4 chữ số">
                     </div>
                   </div>
                   <div>
@@ -751,6 +751,8 @@
         const cardInputs = document.querySelectorAll('.card-form .form-input');
         let isCardValid = true;
         cardInputs.forEach(input => {
+          if (input.disabled || input.dataset.cardOptional === 'true') return;
+          if (input.id === 'bankCardNumber' && input.value.includes('*')) return;
           if (!input.value.trim() || !input.checkValidity()) {
             isCardValid = false;
             input.style.borderColor = '#ef4444';
@@ -790,10 +792,17 @@
       }
 
       if (selectedPayment === 'card' && document.getElementById('saveBankCard').checked) {
-        const bankCardResult = await EmoBoxApi.saveBankCard(user, getBankCardPayload());
-        if (bankCardResult.error) {
-          showToast('⚠ Không lưu được thẻ ngân hàng: ' + bankCardResult.error);
+        if (!user || !user.email) {
+          showToast('⚠ Vui lòng đăng nhập để lưu thông tin thẻ ngân hàng.');
           return;
+        }
+        const cardPayload = getBankCardPayload();
+        if (!String(cardPayload.cardNumber || '').includes('*')) {
+          const bankCardResult = await EmoBoxApi.saveBankCard(user, cardPayload);
+          if (bankCardResult.error) {
+            showToast('⚠ Không lưu được thẻ ngân hàng: ' + bankCardResult.error);
+            return;
+          }
         }
       }
 
@@ -802,7 +811,7 @@
       let checkoutItems = JSON.parse(localStorage.getItem('emobox_checkout_items') || '[]');
       let cartData = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
       let eventsUpdated = false;
-      const shouldMarkCalendarPaid = !['bank_transfer', 'cod'].includes(selectedPayment);
+      const shouldMarkCalendarPaid = selectedPayment === 'wallet';
 
       checkoutItems.forEach(item => {
         if (shouldMarkCalendarPaid && item.isPkg && item.id.startsWith('evt_')) {
@@ -889,8 +898,12 @@
       }));
 
       const doneMessage = selectedPayment === 'bank_transfer'
-        ? `🎉 Đã tạo đơn ${orderResult.orderCode}. Vui lòng chuyển khoản đúng mã đơn, EmoBox sẽ đối soát.`
-        : `🎉 Thanh toán thành công! Mã đơn: ${orderResult.orderCode}`;
+        ? `Da tao don ${orderResult.orderCode}. Vui long chuyen khoan dung ma don, EmoBox se doi soat.`
+        : selectedPayment === 'card'
+          ? `Da luu don ${orderResult.orderCode} va thong tin the. Don dang cho xac nhan thanh toan.`
+          : selectedPayment === 'wallet'
+            ? `Thanh toan thanh cong! Ma don: ${orderResult.orderCode}`
+            : `Da tao don ${orderResult.orderCode}. Thanh toan khi nhan hang.`;
       showToast(doneMessage, 4500);
       
       setTimeout(() => {
