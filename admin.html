@@ -89,6 +89,7 @@
         <button class="nav-btn" data-section="reviews">Đối soát thanh toán</button>
         <button class="nav-btn" data-section="settings">Cấu hình chức năng</button>
         <button class="nav-btn" data-section="admins">Tài khoản Admin</button>
+        <button class="nav-btn" data-section="vouchers">Voucher</button>
       </nav>
       <div class="sidebar-footer">
         <button class="logout-btn" onclick="logoutAdmin()">Đăng xuất</button>
@@ -186,6 +187,28 @@
         </div>
       </section>
 
+      <section id="vouchers" class="section">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><h2>Tao voucher</h2></div>
+            <div class="form-grid">
+              <div><label>Ma voucher</label><input id="voucherCode" placeholder="VD: EMOBOX10" maxlength="32"></div>
+              <div><label>Chiet khau</label><select id="voucherDiscount"><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option></select></div>
+              <div><label>Ap dung cho loai KH</label><select id="voucherCustomerType"><option value="all">Tat ca KH</option><option value="none">Thanh vien thuong</option><option value="member">Tat ca thanh vien co goi</option><option value="3-months">Thanh vien 3 thang</option><option value="6-months">Thanh vien 6 thang</option><option value="12-months">Thanh vien 12 thang</option></select></div>
+              <div><label>Thoi gian het han</label><input id="voucherExpiresAt" type="datetime-local"></div>
+              <div><label>Hinh thuc gui</label><select id="voucherSendMethod"><option value="email_all">Gui qua toan bo email KH</option><option value="facebook">Dang Facebook</option></select></div>
+              <div><label>Link bai Facebook</label><input id="voucherFacebookUrl" placeholder="https://facebook.com/..."></div>
+            </div>
+            <button class="btn btn-primary" onclick="createVoucher()" style="margin-top:16px;">Tao voucher</button>
+            <div class="muted" style="margin-top:10px;">Ma chi gom chu, so, dau gach ngang hoac gach duoi. He thong khong cho tao trung ma.</div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>Danh sach voucher</h2><button class="btn btn-ghost" onclick="loadVouchers()">Tai lai</button></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Ma</th><th>Giam</th><th>Ap dung</th><th>Het han</th><th>Da dung</th></tr></thead><tbody id="voucherRows"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
       <section id="admins" class="section">
         <div class="grid-2">
           <div class="card">
@@ -216,7 +239,7 @@
     let autoTimer = null;
 
     if (!token) {
-      window.location.href = 'admin-login.html';
+      window.location.href = 'login.html';
     }
 
     document.getElementById('adminName').textContent = adminUser.name || adminUser.email || 'Admin';
@@ -231,7 +254,7 @@
     function logoutAdmin() {
       localStorage.removeItem('emobox_admin_token');
       localStorage.removeItem('emobox_admin_user');
-      window.location.href = 'admin-login.html';
+      window.location.href = 'login.html';
     }
 
     async function adminRequest(action, payload = {}) {
@@ -256,6 +279,15 @@
     function dateText(value) {
       if (!value) return '';
       return new Date(value).toLocaleDateString('vi-VN');
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function statusPill(value) {
@@ -438,6 +470,48 @@
       }
     }
 
+    async function loadVouchers() {
+      try {
+        const data = await adminRequest('vouchers');
+        renderVouchers(data.vouchers || []);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    function renderVouchers(vouchers) {
+      document.getElementById('voucherRows').innerHTML = tableRows(vouchers, 'Chua co voucher.', row => `
+        <tr>
+          <td><strong>${escapeHtml(row.code)}</strong><br><span class="muted">${escapeHtml(row.sendMethod)} / ${escapeHtml(row.sendStatus)}</span></td>
+          <td>${row.discountPercent}%</td>
+          <td>${escapeHtml(row.customerTypeLabel || row.customerType)}</td>
+          <td>${dateText(row.expiresAt)}<br>${row.active ? '<span class="pill active">Dang bat</span>' : '<span class="pill rejected">Da khoa</span>'}</td>
+          <td>${row.usedCount || 0}<br><span class="muted">${money(row.discountTotal || 0)}</span></td>
+        </tr>
+      `);
+    }
+
+    async function createVoucher() {
+      try {
+        const payload = {
+          code: document.getElementById('voucherCode').value.trim(),
+          discountPercent: Number(document.getElementById('voucherDiscount').value),
+          customerType: document.getElementById('voucherCustomerType').value,
+          expiresAt: document.getElementById('voucherExpiresAt').value ? new Date(document.getElementById('voucherExpiresAt').value).toISOString() : '',
+          sendMethod: document.getElementById('voucherSendMethod').value,
+          facebookPostUrl: document.getElementById('voucherFacebookUrl').value.trim()
+        };
+        const data = await adminRequest('create-voucher', payload);
+        renderVouchers(data.vouchers || []);
+        document.getElementById('voucherCode').value = '';
+        document.getElementById('voucherFacebookUrl').value = '';
+        const emailText = data.email && data.email.sent ? ` Da gui ${data.email.count || 0} email.` : '';
+        toast('Da tao voucher.' + emailText);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
     document.querySelectorAll('.nav-btn').forEach(button => {
       button.addEventListener('click', () => {
         document.querySelectorAll('.nav-btn').forEach(item => item.classList.remove('active'));
@@ -447,6 +521,7 @@
         document.getElementById('pageTitle').textContent = button.textContent;
         if (button.dataset.section === 'admins') loadAdmins();
         if (button.dataset.section === 'reviews') loadReviews();
+        if (button.dataset.section === 'vouchers') loadVouchers();
       });
     });
 
