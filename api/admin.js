@@ -165,6 +165,17 @@ async function requireAdmin(req, res, body, client) {
   return result.rows[0];
 }
 
+function canReviewPayments(admin) {
+  return ['owner', 'admin', 'payment_admin', 'finance'].includes(String(admin && admin.role || '').toLowerCase());
+}
+
+function requirePaymentReviewPermission(admin) {
+  if (canReviewPayments(admin)) return;
+  const err = new Error('Tai khoan admin nay chua duoc cap quyen doi soat thanh toan.');
+  err.statusCode = 403;
+  throw err;
+}
+
 async function getSettings(client) {
   const result = await client.query(
     'SELECT setting_value FROM "B30AdminSettings" WHERE setting_key = $1 LIMIT 1',
@@ -1103,17 +1114,18 @@ module.exports = async function handler(req, res) {
     if (action === 'login') return await loginRoute(req, res, body);
 
     if (action === 'dashboard') {
-      return await protectedRoute(req, res, body, async client => {
+      return await protectedRoute(req, res, body, async (client, admin) => {
         const settings = await getSettings(client);
-        const sweep = await runAutoReviewSweep(client, settings);
+        const sweep = canReviewPayments(admin) ? await runAutoReviewSweep(client, settings) : { enabled: false, reviewed: 0, ordersForEmail: [] };
         const reports = await buildReports(client);
-        const reviews = await listReviews(client);
-        return { settings, sweep, reports, reviews };
+        const reviews = canReviewPayments(admin) ? await listReviews(client) : { items: [], counts: { total: 0, walletDeposits: 0, orders: 0, subscriptions: 0 } };
+        return { settings, sweep, reports, reviews, permissions: { canReviewPayments: canReviewPayments(admin) } };
       });
     }
 
     if (action === 'reviews') {
-      return await protectedRoute(req, res, body, async client => {
+      return await protectedRoute(req, res, body, async (client, admin) => {
+        requirePaymentReviewPermission(admin);
         const settings = await getSettings(client);
         const sweep = await runAutoReviewSweep(client, settings);
         const reviews = await listReviews(client);
@@ -1122,7 +1134,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'decide-review') {
-      return await protectedRoute(req, res, body, async client => {
+      return await protectedRoute(req, res, body, async (client, admin) => {
+        requirePaymentReviewPermission(admin);
         const result = await applyReviewDecision(client, body);
         if (!result.updated) {
           const err = new Error('Khong tim thay giao dich doi soat.');
@@ -1138,11 +1151,14 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'save-settings') {
-      return await protectedRoute(req, res, body, async client => ({ settings: await saveSettingsValue(client, body.settings || {}) }));
+      return await protectedRoute(req, res, body, async (client, admin) => {
+        requirePaymentReviewPermission(admin);
+        return { settings: await saveSettingsValue(client, body.settings || {}) };
+      });
     }
 
     if (action === 'create-admin') {
-      return await protectedRoute(req, res, body, async client => {
+      return await protectedRoute(req, res, body, async (client, admin) => {
         const email = String(body.email || '').trim().toLowerCase();
         const password = String(body.password || '');
         const fullName = String(body.fullName || body.name || 'EmoBox Admin').trim();
@@ -1171,7 +1187,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'admins') {
-      return await protectedRoute(req, res, body, async client => {
+      return await protectedRoute(req, res, body, async (client, admin) => {
         const admins = await client.query(
           `
           SELECT admin_id, full_name, email, role, active, last_login_at, created_at
@@ -1213,6 +1229,7 @@ module.exports = async function handler(req, res) {
 
     if (action === 'sweep') {
       return await protectedRoute(req, res, body, async client => {
+        requirePaymentReviewPermission(admin);
         const settings = Object.assign({}, await getSettings(client), { reviewMode: 'auto' });
         const sweep = await runAutoReviewSweep(client, settings);
         return sweep;
