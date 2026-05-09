@@ -388,9 +388,20 @@
       `).join('');
     }
 
+    function applyAdminPermissions(permissions) {
+      const canReview = !permissions || permissions.canReviewPayments !== false;
+      document.querySelectorAll('[data-section="reviews"], [data-section="settings"]').forEach(button => {
+        button.style.display = canReview ? '' : 'none';
+      });
+      if (!canReview && (document.getElementById('reviews').classList.contains('active') || document.getElementById('settings').classList.contains('active'))) {
+        document.querySelector('[data-section="reports"]').click();
+      }
+    }
+
     async function loadDashboard() {
       try {
         const data = await adminRequest('dashboard');
+        applyAdminPermissions(data.permissions || {});
         renderDashboard(data);
         if (data.sweep && data.sweep.reviewed) toast(`Tự động đối soát ${data.sweep.reviewed} giao dịch.`);
       } catch (err) {
