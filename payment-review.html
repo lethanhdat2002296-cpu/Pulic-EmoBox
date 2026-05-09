@@ -8,6 +8,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    (function () {
+      const token = localStorage.getItem('emobox_admin_token');
+      window.location.replace(token ? 'admin.html' : 'login.html');
+    })();
+  </script>
   <style>
     body { background: #f8fafc; }
     .review-shell { padding: 3rem 0 6rem; max-width: 1160px; margin: 0 auto; }
