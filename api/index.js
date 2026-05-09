@@ -167,7 +167,9 @@ function rowToOrder(row) {
     orderCode: row.order_code,
     subtotal: Number(row.subtotal || 0),
     shippingFee: Number(row.shipping_fee || 0),
+    discount: Number(row.discount_amount || 0),
     total: Number(row.total_amount || 0),
+    voucherCode: row.voucher_code || '',
     paymentMethod: row.payment_method || '',
     paymentStatus: row.payment_status || '',
     orderStatus: row.order_status || '',
@@ -307,6 +309,91 @@ async function creditWallet(client, userId, amount, fallbackBalance = 0) {
 
 function paymentRequestCode(prefix) {
   return `${prefix}${orderCode().replace(/^EB/, '')}`;
+}
+
+function normalizeVoucherCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function voucherCustomerMatches(customerType, planCode) {
+  const type = String(customerType || 'all').trim();
+  const plan = String(planCode || 'none').trim() || 'none';
+  if (type === 'all') return true;
+  if (type === 'member') return plan !== 'none';
+  return type === plan;
+}
+
+function voucherCustomerLabel(value) {
+  const labels = {
+    all: 'Tat ca khach hang',
+    none: 'Thanh vien thuong',
+    member: 'Tat ca thanh vien co goi',
+    '3-months': 'Thanh vien 3 thang',
+    '6-months': 'Thanh vien 6 thang',
+    '12-months': 'Thanh vien 12 thang'
+  };
+  return labels[value] || value || 'Tat ca khach hang';
+}
+
+async function readUserPlan(client, userId, fallbackPlan) {
+  if (!userId) return fallbackPlan || 'none';
+  const result = await client.query(
+    'SELECT plan_code FROM "B20Users" WHERE user_id = $1 LIMIT 1',
+    [userId]
+  );
+  return result.rows[0] && result.rows[0].plan_code || fallbackPlan || 'none';
+}
+
+async function validateVoucherForCheckout(client, codeValue, userPlan, subtotal) {
+  const code = normalizeVoucherCode(codeValue);
+  if (!code) {
+    return { valid: false, error: 'Vui long nhap ma voucher.' };
+  }
+
+  const voucherResult = await client.query(
+    `
+    SELECT voucher_id, code, discount_percent, customer_type, expires_at, active
+    FROM "B30Vouchers"
+    WHERE UPPER(code) = UPPER($1)
+    LIMIT 1
+    `,
+    [code]
+  );
+
+  if (voucherResult.rowCount === 0) {
+    return { valid: false, error: 'Ma voucher khong ton tai.' };
+  }
+
+  const voucher = voucherResult.rows[0];
+  if (!voucher.active) {
+    return { valid: false, error: 'Ma voucher da bi khoa.' };
+  }
+
+  const expiresAt = voucher.expires_at ? new Date(voucher.expires_at) : null;
+  if (!expiresAt || Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+    return { valid: false, error: 'Ma voucher da het han.' };
+  }
+
+  if (!voucherCustomerMatches(voucher.customer_type, userPlan)) {
+    return {
+      valid: false,
+      error: `Voucher nay chi ap dung cho ${voucherCustomerLabel(voucher.customer_type)}.`
+    };
+  }
+
+  const discountPercent = Number(voucher.discount_percent || 0);
+  const discountAmount = Math.max(0, Math.floor(toNumber(subtotal, 0) * discountPercent / 100));
+  return {
+    valid: true,
+    voucher: {
+      voucherId: voucher.voucher_id,
+      code: voucher.code,
+      discountPercent,
+      customerType: voucher.customer_type,
+      expiresAt: toIso(voucher.expires_at),
+      discountAmount
+    }
+  };
 }
 
 function monthsForPlan(planCode) {
@@ -1063,6 +1150,25 @@ async function activateSubscription(req, res) {
   }
 }
 
+async function validateVoucher(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const subtotal = toNumber(body.subtotal || body.orderSubtotal, 0);
+    const result = await withClient(async client => {
+      const user = await resolveUser(client, body.user || {});
+      const userPlan = await readUserPlan(client, user.userId, body.user && body.user.plan || 'none');
+      const validation = await validateVoucherForCheckout(client, body.code || body.voucherCode, userPlan, subtotal);
+      return Object.assign({ userId: user.userId || null, customerPlan: userPlan }, validation);
+    });
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(500).json({ ok: false, valid: false, error: err.message });
+  }
+}
+
 async function saveOrder(req, res) {
   if (!requireMethod(req, res, 'POST')) return;
 
@@ -1072,36 +1178,66 @@ async function saveOrder(req, res) {
     const items = Array.isArray(order.items) ? order.items : [];
     const subtotal = toNumber(order.subtotal, 0);
     const shippingFee = toNumber(order.shippingFee, 0);
-    const total = toNumber(order.total, subtotal + shippingFee);
     const paymentMethod = order.paymentMethod || 'card';
     const paymentReference = order.paymentReference || order.transferCode || '';
     const paymentProofUrl = order.paymentProofUrl || order.paymentProofName || '';
     const bankTransferNote = order.bankTransferNote || order.transferNote || '';
+    const voucherCode = normalizeVoucherCode(order.voucherCode || order.voucher && order.voucher.code);
     if (paymentMethod === 'card') {
       return res.status(400).json({
         ok: false,
         error: 'Thanh toan the chua ket noi cong thanh toan that. Vui long chon chuyen khoan, COD hoac Vi EmoBox.'
       });
     }
-    const paymentStatus = paymentMethod === 'wallet'
-      ? 'paid'
-      : paymentMethod === 'bank_transfer'
-        ? (paymentReference || paymentProofUrl ? 'pending_review' : 'awaiting_transfer')
-        : 'pending';
 
     const result = await withClient(async client => {
       const user = await upsertUser(client, body.user);
       const code = orderCode();
+      const userPlan = await readUserPlan(client, user.userId, body.user && body.user.plan || 'none');
+      let voucher = null;
+      let discountAmount = 0;
+
+      if (voucherCode) {
+        const voucherValidation = await validateVoucherForCheckout(client, voucherCode, userPlan, subtotal);
+        if (!voucherValidation.valid) {
+          const err = new Error(voucherValidation.error || 'Ma voucher khong hop le.');
+          err.statusCode = 400;
+          throw err;
+        }
+        voucher = voucherValidation.voucher;
+        discountAmount = toNumber(voucher.discountAmount, 0);
+      }
+
+      const total = Math.max(0, subtotal + shippingFee - discountAmount);
+      const paymentStatus = total <= 0 || paymentMethod === 'wallet'
+        ? 'paid'
+        : paymentMethod === 'bank_transfer'
+          ? (paymentReference || paymentProofUrl ? 'pending_review' : 'awaiting_transfer')
+          : 'pending';
 
       const orderResult = await client.query(
         `
         INSERT INTO "B30Orders"
-          (user_id, order_code, subtotal, shipping_fee, total_amount, payment_method, payment_status, order_status, payment_reference, payment_proof_url, bank_transfer_note, paid_at)
+          (user_id, order_code, subtotal, shipping_fee, discount_amount, total_amount, voucher_id, voucher_code, payment_method, payment_status, order_status, payment_reference, payment_proof_url, bank_transfer_note, paid_at)
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, 'processing', $8, $9, $10, CASE WHEN $7 = 'paid' THEN NOW() ELSE NULL END)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'processing', $11, $12, $13, CASE WHEN $10 = 'paid' THEN NOW() ELSE NULL END)
         RETURNING order_id, order_code, payment_status
         `,
-        [user.userId, code, subtotal, shippingFee, total, paymentMethod, paymentStatus, paymentReference || null, paymentProofUrl || null, bankTransferNote || null]
+        [
+          user.userId,
+          code,
+          subtotal,
+          shippingFee,
+          discountAmount,
+          total,
+          voucher && voucher.voucherId || null,
+          voucher && voucher.code || null,
+          paymentMethod,
+          paymentStatus,
+          paymentReference || null,
+          paymentProofUrl || null,
+          bankTransferNote || null
+        ]
       );
 
       const savedOrder = orderResult.rows[0];
@@ -1121,6 +1257,27 @@ async function saveOrder(req, res) {
           total
         }
       });
+
+      if (voucher && discountAmount > 0) {
+        await client.query(
+          `
+          INSERT INTO "B30VoucherRedemptions"
+            (voucher_id, user_id, order_id, voucher_code, discount_percent, discount_amount, order_amount)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, $7)
+          ON CONFLICT (voucher_id, order_id) DO NOTHING
+          `,
+          [
+            voucher.voucherId,
+            user.userId,
+            savedOrder.order_id,
+            voucher.code,
+            voucher.discountPercent,
+            discountAmount,
+            total
+          ]
+        );
+      }
 
       const contact = order.contact || {};
       await client.query(
@@ -1205,7 +1362,7 @@ async function saveOrder(req, res) {
         orderCode: savedOrder.order_code,
         paymentStatus: savedOrder.payment_status,
         balanceAfter,
-        order: { subtotal, shippingFee, total, paymentMethod, paymentStatus, paymentReference, paymentProofUrl, bankTransferNote },
+        order: { subtotal, shippingFee, discount: discountAmount, total, paymentMethod, paymentStatus, paymentReference, paymentProofUrl, bankTransferNote, voucher },
         contact,
         items,
         user: body.user || {}
@@ -1225,6 +1382,8 @@ async function saveOrder(req, res) {
       orderCode: result.orderCode,
       paymentStatus: result.paymentStatus,
       balanceAfter: result.balanceAfter,
+      discount: result.order.discount,
+      voucher: result.order.voucher,
       email
     });
   } catch (err) {
@@ -1319,7 +1478,9 @@ async function queryOrders(client, whereSql, params) {
       o.order_code,
       o.subtotal,
       o.shipping_fee,
+      o.discount_amount,
       o.total_amount,
+      o.voucher_code,
       o.payment_method,
       o.payment_status,
       o.order_status,
@@ -2275,6 +2436,7 @@ const routes = {
   '/api/subscriptions/activate': activateSubscription,
   '/api/users/login': loginUser,
   '/api/users/upsert': upsertUserRoute,
+  '/api/vouchers/validate': validateVoucher,
   '/api/wallet/deposit': walletDeposit,
   '/api/wallet/history': walletHistory,
   '/api/wallet/withdraw': walletWithdraw
