@@ -528,7 +528,10 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = getBody(req);
-    if (!requireReviewAccess(req, res, body)) return;
+    return res.status(403).json({
+      ok: false,
+      error: 'Doi soat thanh toan chi duoc thuc hien trong Admin Dashboard bang tai khoan admin.'
+    });
 
     const action = resolveAction(req, body);
     if (action === 'decide') return await decideReview(req, res, body);
