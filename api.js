@@ -158,6 +158,13 @@
         order
       });
     },
+    validateVoucher(code, user, subtotal) {
+      return request('/api/vouchers/validate', {
+        user: compactUser(user),
+        code,
+        subtotal: toNumber(subtotal, 0)
+      });
+    },
     listOrders(user) {
       return request('/api/orders/history', {
         user: compactUser(user)
