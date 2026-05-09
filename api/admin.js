@@ -6,7 +6,7 @@ const {
   toNumber,
   withClient
 } = require('../lib/db');
-const { sendOrderStatusEmail } = require('../lib/email');
+const { sendOrderStatusEmail, sendVoucherEmail } = require('../lib/email');
 
 const DEFAULT_SETTINGS = {
   reviewMode: 'manual',
@@ -189,6 +189,156 @@ async function saveSettingsValue(client, nextSettings) {
     [JSON.stringify(cleanSettings)]
   );
   return cleanSettings;
+}
+
+function normalizeVoucherCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function voucherCustomerLabel(value) {
+  const labels = {
+    all: 'Tat ca khach hang',
+    none: 'Thanh vien thuong',
+    member: 'Tat ca thanh vien co goi',
+    '3-months': 'Thanh vien 3 thang',
+    '6-months': 'Thanh vien 6 thang',
+    '12-months': 'Thanh vien 12 thang'
+  };
+  return labels[value] || value || 'Tat ca khach hang';
+}
+
+function voucherRow(row) {
+  return {
+    voucherId: row.voucher_id,
+    code: row.code,
+    discountPercent: Number(row.discount_percent || 0),
+    customerType: row.customer_type || 'all',
+    customerTypeLabel: voucherCustomerLabel(row.customer_type || 'all'),
+    expiresAt: toIso(row.expires_at),
+    sendMethod: row.send_method || 'email_all',
+    sendStatus: row.send_status || 'created',
+    lastSentAt: toIso(row.last_sent_at),
+    lastSentCount: Number(row.last_sent_count || 0),
+    facebookPostUrl: row.facebook_post_url || '',
+    active: Boolean(row.active),
+    usedCount: Number(row.used_count || 0),
+    discountTotal: Number(row.discount_total || 0),
+    createdAt: toIso(row.created_at)
+  };
+}
+
+async function listVouchers(client) {
+  const result = await client.query(
+    `
+    SELECT
+      v.voucher_id,
+      v.code,
+      v.discount_percent,
+      v.customer_type,
+      v.expires_at,
+      v.send_method,
+      v.send_status,
+      v.last_sent_at,
+      v.last_sent_count,
+      v.facebook_post_url,
+      v.active,
+      v.created_at,
+      COUNT(r.redemption_id)::INT AS used_count,
+      COALESCE(SUM(r.discount_amount), 0)::NUMERIC AS discount_total
+    FROM "B30Vouchers" v
+    LEFT JOIN "B30VoucherRedemptions" r ON r.voucher_id = v.voucher_id
+    GROUP BY v.voucher_id
+    ORDER BY v.created_at DESC
+    LIMIT 100
+    `
+  );
+  return result.rows.map(voucherRow);
+}
+
+async function createVoucherRecord(client, body) {
+  const code = normalizeVoucherCode(body.code);
+  const discountPercent = Number(body.discountPercent || body.discount_percent || 0);
+  const customerType = String(body.customerType || body.customer_type || 'all').trim();
+  const sendMethod = String(body.sendMethod || body.send_method || 'email_all').trim();
+  const facebookPostUrl = String(body.facebookPostUrl || body.facebook_post_url || '').trim();
+  const allowedDiscounts = [5, 10, 15, 20];
+  const allowedCustomers = ['all', 'none', 'member', '3-months', '6-months', '12-months'];
+  const allowedSendMethods = ['email_all', 'facebook'];
+  const expiresAt = new Date(body.expiresAt || body.expires_at || '');
+
+  if (!/^[A-Z0-9_-]{3,32}$/.test(code)) {
+    const err = new Error('Ma voucher chi gom chu, so, dau gach ngang/gach duoi va dai 3-32 ky tu.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!allowedDiscounts.includes(discountPercent)) {
+    const err = new Error('Chiet khau voucher chi duoc chon 5%, 10%, 15% hoac 20%.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!allowedCustomers.includes(customerType)) {
+    const err = new Error('Loai khach hang ap dung voucher khong hop le.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!allowedSendMethods.includes(sendMethod)) {
+    const err = new Error('Hinh thuc gui voucher khong hop le.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+    const err = new Error('Thoi gian het han voucher phai lon hon hien tai.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const duplicate = await client.query(
+    'SELECT voucher_id FROM "B30Vouchers" WHERE UPPER(code) = UPPER($1) LIMIT 1',
+    [code]
+  );
+  if (duplicate.rowCount > 0) {
+    const err = new Error('Ma voucher da ton tai. Vui long dung ma khac.');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const recipients = sendMethod === 'email_all'
+    ? await client.query('SELECT DISTINCT email FROM "B20Users" WHERE email IS NOT NULL AND email <> $1', [''])
+    : { rows: [] };
+  const recipientEmails = recipients.rows.map(row => row.email).filter(Boolean);
+
+  const saved = await client.query(
+    `
+    INSERT INTO "B30Vouchers"
+      (code, discount_percent, customer_type, expires_at, send_method, send_status, last_sent_at, last_sent_count, facebook_post_url)
+    VALUES
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING *
+    `,
+    [
+      code,
+      discountPercent,
+      customerType,
+      expiresAt.toISOString(),
+      sendMethod,
+      sendMethod === 'email_all' ? 'email_requested' : 'facebook_ready',
+      sendMethod === 'email_all' ? new Date().toISOString() : null,
+      recipientEmails.length,
+      facebookPostUrl || null
+    ]
+  );
+
+  const voucher = voucherRow(Object.assign({}, saved.rows[0], {
+    used_count: 0,
+    discount_total: 0
+  }));
+
+  return {
+    voucher,
+    voucherEmail: sendMethod === 'email_all'
+      ? { voucher, recipients: recipientEmails }
+      : null
+  };
 }
 
 async function creditWallet(client, userId, amount) {
@@ -930,6 +1080,14 @@ async function protectedRoute(req, res, body, handler) {
   if (result === null) return;
 
   if (result.ordersForEmail) await sendPaidEmails(result.ordersForEmail);
+  if (result.voucherEmail) {
+    result.email = await sendVoucherEmail(result.voucherEmail).catch(err => ({
+      sent: false,
+      skipped: false,
+      error: err.message
+    }));
+    delete result.voucherEmail;
+  }
   return res.status(200).json({ ok: true, ...result });
 }
 
@@ -1032,6 +1190,23 @@ module.exports = async function handler(req, res) {
             lastLoginAt: toIso(row.last_login_at),
             createdAt: toIso(row.created_at)
           }))
+        };
+      });
+    }
+
+    if (action === 'vouchers') {
+      return await protectedRoute(req, res, body, async client => ({
+        vouchers: await listVouchers(client)
+      }));
+    }
+
+    if (action === 'create-voucher') {
+      return await protectedRoute(req, res, body, async client => {
+        const result = await createVoucherRecord(client, body);
+        return {
+          voucher: result.voucher,
+          vouchers: await listVouchers(client),
+          voucherEmail: result.voucherEmail
         };
       });
     }
