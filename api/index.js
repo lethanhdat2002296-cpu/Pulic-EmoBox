@@ -1982,18 +1982,11 @@ function getPaymentReviewSecret(req, body) {
 }
 
 function requirePaymentReviewAccess(req, res, body) {
-  const expectedSecret = process.env.PAYMENT_REVIEW_SECRET || process.env.PAYMENT_WEBHOOK_SECRET;
-  if (!expectedSecret) {
-    res.status(503).json({ ok: false, error: 'PAYMENT_REVIEW_SECRET or PAYMENT_WEBHOOK_SECRET is not configured' });
-    return false;
-  }
-
-  if (getPaymentReviewSecret(req, body) !== expectedSecret) {
-    res.status(401).json({ ok: false, error: 'Unauthorized payment review' });
-    return false;
-  }
-
-  return true;
+  res.status(403).json({
+    ok: false,
+    error: 'Doi soat thanh toan chi duoc thuc hien trong Admin Dashboard bang tai khoan admin.'
+  });
+  return false;
 }
 
 function reviewDate(value) {
