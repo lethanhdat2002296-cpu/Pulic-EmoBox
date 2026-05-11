@@ -346,6 +346,41 @@ async function readUserPlan(client, userId, fallbackPlan) {
   return result.rows[0] && result.rows[0].plan_code || fallbackPlan || 'none';
 }
 
+function hasPaidMemberPlan(planCode) {
+  const plan = String(planCode || 'none').trim();
+  return Boolean(plan && plan !== 'none');
+}
+
+async function resolveCustomGiftMember(client, userPayload = {}, email) {
+  const userId = Number(userPayload.userId || userPayload.user_id || 0);
+  if (userId) {
+    const byId = await client.query(
+      'SELECT user_id, email, plan_code FROM "B20Users" WHERE user_id = $1 LIMIT 1',
+      [userId]
+    );
+    if (byId.rowCount > 0) {
+      return {
+        userId: byId.rows[0].user_id,
+        email: byId.rows[0].email,
+        plan: byId.rows[0].plan_code || 'none'
+      };
+    }
+  }
+
+  const cleanEmail = normalizeEmail(email || userPayload.email);
+  if (!cleanEmail) return { userId: null, email: null, plan: 'none' };
+  const byEmail = await client.query(
+    'SELECT user_id, email, plan_code FROM "B20Users" WHERE email = $1 LIMIT 1',
+    [cleanEmail]
+  );
+  if (byEmail.rowCount === 0) return { userId: null, email: cleanEmail, plan: 'none' };
+  return {
+    userId: byEmail.rows[0].user_id,
+    email: byEmail.rows[0].email,
+    plan: byEmail.rows[0].plan_code || 'none'
+  };
+}
+
 async function validateVoucherForCheckout(client, codeValue, userPlan, subtotal) {
   const code = normalizeVoucherCode(codeValue);
   if (!code) {
@@ -1560,18 +1595,30 @@ async function createCustomGiftRequest(req, res) {
     const attachmentUrl = String(request.attachmentUrl || request.imageUrl || '').trim();
 
     if (!fullName || !email || !giftPackage || !giftType) {
-      return res.status(400).json({ ok: false, error: 'Vui long nhap ho ten, email, goi qua va loai qua.' });
+      return res.status(400).json({ ok: false, error: 'Vui lòng nhập họ tên, email, gói quà và loại quà.' });
     }
     if (attachmentUrl.length > 750000) {
-      return res.status(400).json({ ok: false, error: 'Hinh anh dinh kem qua lon. Vui long dung link anh hoac anh nho hon.' });
+      return res.status(400).json({ ok: false, error: 'Hình ảnh đính kèm quá lớn. Vui lòng dùng link ảnh hoặc ảnh nhỏ hơn.' });
     }
 
     const result = await withClient(async client => {
-      const user = await upsertUser(client, Object.assign({}, body.user || {}, {
-        name: fullName,
-        email,
-        phone
-      }));
+      const user = await resolveCustomGiftMember(client, body.user || {}, email);
+      if (!user.userId || !hasPaidMemberPlan(user.plan)) {
+        const err = new Error('Chức năng thiết kế quà tặng chỉ dành cho thành viên đang sử dụng gói.');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      await client.query(
+        `
+        UPDATE "B20Users"
+        SET full_name = COALESCE(NULLIF($2, ''), full_name),
+            phone = COALESCE(NULLIF($3, ''), phone),
+            updated_at = NOW()
+        WHERE user_id = $1
+        `,
+        [user.userId, fullName, phone]
+      );
       const requestCode = customGiftCode();
       const quoteLink = customGiftLink(req, body, requestCode, email);
       const selectedItems = arrayValue(request.selectedItems || request.items);
