@@ -89,6 +89,51 @@ function ensureUserMenuLink(userMenuBody, href, text) {
   userMenuBody.appendChild(link);
 }
 
+function ensureCustomGiftNavLink() {
+  const navLinks = document.getElementById('navLinks');
+  if (!navLinks) return;
+
+  navLinks.querySelectorAll('a').forEach(link => {
+    const label = link.textContent.trim();
+    if (label === 'Subscription') link.textContent = 'Gói thành viên';
+    if (label === 'Trang Chủ') link.textContent = 'Trang chủ';
+    if (label === 'Đặt Lịch') link.textContent = 'Đặt lịch';
+    if (label === 'Liên Hệ') link.textContent = 'Liên hệ';
+  });
+
+  if (navLinks.querySelector('a[href="custom-gift.html"]')) return;
+  const link = document.createElement('a');
+  link.href = 'custom-gift.html';
+  link.className = 'nav-link';
+  link.textContent = 'Thiết kế quà';
+
+  const plansLink = navLinks.querySelector('a[href="plans.html"]');
+  if (plansLink) navLinks.insertBefore(link, plansLink);
+  else navLinks.appendChild(link);
+}
+
+function normalizeVietnameseLabels() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent || ['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT'].includes(parent.tagName)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    node.nodeValue = node.nodeValue
+      .replace(/Subscription/g, 'Gói thành viên')
+      .replace(/Shop Now/g, 'Mua ngay')
+      .replace(/Add to Cart/g, 'Thêm vào giỏ')
+      .replace(/Checkout/g, 'Thanh toán');
+  });
+}
+
 // Xử lý click ra ngoài để đóng user menu
 document.addEventListener('click', (e) => {
   const userBtn = document.getElementById('userBtn');
@@ -153,6 +198,8 @@ function handleLogout(e) {
 document.addEventListener('DOMContentLoaded', () => {
   updateCartBadge();
   normalizeFooterLinks();
+  ensureCustomGiftNavLink();
+  normalizeVietnameseLabels();
 
     // Update User Menu in Navbar across all pages
   const userMenuBody = document.querySelector('.user-menu-body');
@@ -177,8 +224,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     userMenuBody.insertBefore(authLink, userMenuBody.firstChild);
+    ensureUserMenuLink(userMenuBody, 'custom-gift.html', 'Thiết kế quà tặng');
     ensureUserMenuLink(userMenuBody, 'order-history.html', '📜 Lịch sử đơn hàng');
     ensureUserMenuLink(userMenuBody, 'track-order.html', '🔎 Theo dõi đơn hàng');
+    userMenuBody.querySelectorAll('a[href="plans.html"]').forEach(link => {
+      link.textContent = 'Gói thành viên';
+    });
   }
 
   if (currentUser) {
