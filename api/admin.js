@@ -487,16 +487,16 @@ async function insertOrderTrackingEvent(client, event) {
 
 function customGiftStatusLabel(value) {
   const labels = {
-    pending_quote: 'Cho bao gia',
-    quoted: 'Da bao gia',
-    re_quote_requested: 'Yeu cau bao gia lai',
-    re_quote_quoted: 'Da bao gia lai',
-    confirmed: 'Khach da xac nhan',
-    ordered: 'Da tao don hang',
-    ordered_paid: 'Da thanh toan',
-    cancelled: 'Da huy'
+    pending_quote: 'Chờ báo giá',
+    quoted: 'Đã báo giá',
+    re_quote_requested: 'Yêu cầu báo giá lại',
+    re_quote_quoted: 'Đã báo giá lại',
+    confirmed: 'Khách đã xác nhận',
+    ordered: 'Đã tạo đơn hàng',
+    ordered_paid: 'Đã thanh toán',
+    cancelled: 'Đã hủy'
   };
-  return labels[value] || value || 'Chua ro';
+  return labels[value] || value || 'Chưa rõ';
 }
 
 function adminBaseUrl(body = {}) {
