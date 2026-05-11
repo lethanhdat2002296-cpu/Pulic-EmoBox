@@ -199,6 +199,28 @@
         message
       });
     },
+    createCustomGiftRequest(customGiftRequest, user) {
+      return request('/api/custom-gifts/create', {
+        user: compactUser(user),
+        origin: window.location.origin,
+        request: customGiftRequest
+      });
+    },
+    getCustomGiftRequest(requestCode, email, user) {
+      return request('/api/custom-gifts/detail', {
+        user: compactUser(user),
+        requestCode,
+        email
+      });
+    },
+    customGiftAction(requestCode, email, action, user, extra) {
+      return request('/api/custom-gifts/action', Object.assign({
+        user: compactUser(user),
+        requestCode,
+        email,
+        action
+      }, extra || {}));
+    },
     listRecipients(user) {
       return request('/api/recipients/list', {
         user: compactUser(user)
