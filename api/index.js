@@ -13,6 +13,8 @@ const {
 } = require('../lib/db');
 const {
   sendContactEmail,
+  sendCustomGiftQuoteEmail,
+  sendCustomGiftRequestEmail,
   sendGiftScheduleEmail,
   sendGiftScheduleStatusEmail,
   sendOrderEmails,
@@ -394,6 +396,89 @@ async function validateVoucherForCheckout(client, codeValue, userPlan, subtotal)
       discountAmount
     }
   };
+}
+
+function customGiftCode() {
+  return orderCode().replace(/^EB/, 'CG');
+}
+
+function arrayValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === 'string') {
+    return value
+      .split(/\r?\n|,/)
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function publicBaseUrl(req, body = {}) {
+  const explicit = String(body.origin || body.baseUrl || process.env.APP_URL || process.env.PUBLIC_APP_URL || '').trim();
+  if (explicit && explicit !== 'null') return explicit.replace(/\/+$/, '');
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').trim();
+  if (!host) return '';
+  const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim() || 'https';
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
+function customGiftLink(req, body, requestCode, email) {
+  const query = `code=${encodeURIComponent(requestCode)}&email=${encodeURIComponent(email || '')}`;
+  const base = publicBaseUrl(req, body);
+  return base ? `${base}/custom-gift-status.html?${query}` : `custom-gift-status.html?${query}`;
+}
+
+function rowToCustomGift(row) {
+  const selectedItems = Array.isArray(row.selected_items) ? row.selected_items : [];
+  const productLinks = Array.isArray(row.product_links) ? row.product_links : [];
+  return {
+    requestId: row.request_id,
+    requestCode: row.request_code,
+    userId: row.user_id,
+    giftPackage: row.gift_package,
+    giftType: row.gift_type,
+    giftGroup: row.gift_group || '',
+    selectedItems,
+    productLinks,
+    attachmentUrl: row.attachment_url || '',
+    customerNote: row.customer_note || '',
+    quotedAmount: row.quoted_amount === null || row.quoted_amount === undefined ? null : Number(row.quoted_amount || 0),
+    quoteNote: row.quote_note || '',
+    quoteLink: row.quote_link || '',
+    status: row.status || 'pending_quote',
+    orderId: row.order_id || null,
+    customer: {
+      name: row.full_name || '',
+      email: row.email || '',
+      phone: row.phone || ''
+    },
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    quotedAt: toIso(row.quoted_at),
+    confirmedAt: toIso(row.confirmed_at),
+    cancelledAt: toIso(row.cancelled_at)
+  };
+}
+
+async function insertCustomGiftEvent(client, requestId, event = {}) {
+  if (!requestId) return;
+  await client.query(
+    `
+    INSERT INTO "B30CustomGiftRequestEvents"
+      (request_id, event_type, status, actor_type, actor_id, message, metadata)
+    VALUES
+      ($1, $2, $3, $4, $5, $6, $7)
+    `,
+    [
+      requestId,
+      event.eventType || 'status',
+      event.status || null,
+      event.actorType || null,
+      event.actorId || null,
+      event.message || null,
+      event.metadata ? JSON.stringify(event.metadata) : null
+    ]
+  );
 }
 
 function monthsForPlan(planCode) {
@@ -1332,6 +1417,41 @@ async function saveOrder(req, res) {
             [savedOrder.order_id, paymentStatus, user.userId, itemId]
           );
         }
+
+        if (item.isCustomGift && item.customGiftRequestCode && user.userId) {
+          await client.query(
+            `
+            UPDATE "B30CustomGiftRequests"
+            SET order_id = $1,
+                status = CASE WHEN $2 = 'paid' THEN 'ordered_paid' ELSE 'ordered' END,
+                updated_at = NOW()
+            WHERE user_id = $3
+              AND UPPER(request_code) = UPPER($4)
+              AND status <> 'cancelled'
+            `,
+            [savedOrder.order_id, paymentStatus, user.userId, item.customGiftRequestCode]
+          );
+          await client.query(
+            `
+            INSERT INTO "B30CustomGiftRequestEvents"
+              (request_id, event_type, status, actor_type, actor_id, message, metadata)
+            SELECT request_id, 'ordered',
+                   CASE WHEN $2 = 'paid' THEN 'ordered_paid' ELSE 'ordered' END,
+                   'system', $3, 'Yeu cau thiet ke da duoc gan vao don hang.',
+                   $4::jsonb
+            FROM "B30CustomGiftRequests"
+            WHERE user_id = $1
+              AND UPPER(request_code) = UPPER($5)
+            `,
+            [
+              user.userId,
+              paymentStatus,
+              savedOrder.order_code,
+              JSON.stringify({ orderId: savedOrder.order_id, orderCode: savedOrder.order_code }),
+              item.customGiftRequestCode
+            ]
+          );
+        }
       }
 
       let balanceAfter = null;
@@ -1421,6 +1541,303 @@ async function saveContactMessage(req, res) {
     return res.status(200).json({ ok: true, ...result, email: emailResult });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+async function createCustomGiftRequest(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const request = body.request || {};
+    const customer = request.customer || {};
+    const email = normalizeEmail(customer.email || request.email || body.user && body.user.email);
+    const fullName = String(customer.name || request.customerName || body.user && (body.user.name || body.user.fullName) || '').trim();
+    const phone = String(customer.phone || request.phone || body.user && body.user.phone || '').trim();
+    const giftPackage = String(request.giftPackage || request.package || '').trim();
+    const giftType = String(request.giftType || request.type || '').trim();
+    const giftGroup = String(request.giftGroup || request.group || '').trim();
+    const attachmentUrl = String(request.attachmentUrl || request.imageUrl || '').trim();
+
+    if (!fullName || !email || !giftPackage || !giftType) {
+      return res.status(400).json({ ok: false, error: 'Vui long nhap ho ten, email, goi qua va loai qua.' });
+    }
+    if (attachmentUrl.length > 750000) {
+      return res.status(400).json({ ok: false, error: 'Hinh anh dinh kem qua lon. Vui long dung link anh hoac anh nho hon.' });
+    }
+
+    const result = await withClient(async client => {
+      const user = await upsertUser(client, Object.assign({}, body.user || {}, {
+        name: fullName,
+        email,
+        phone
+      }));
+      const requestCode = customGiftCode();
+      const quoteLink = customGiftLink(req, body, requestCode, email);
+      const selectedItems = arrayValue(request.selectedItems || request.items);
+      const productLinks = arrayValue(request.productLinks || request.productLink || request.links);
+
+      const saved = await client.query(
+        `
+        INSERT INTO "B30CustomGiftRequests"
+          (user_id, request_code, gift_package, gift_type, gift_group, selected_items, product_links, attachment_url, customer_note, quote_link, status)
+        VALUES
+          ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10, 'pending_quote')
+        RETURNING request_id
+        `,
+        [
+          user.userId,
+          requestCode,
+          giftPackage,
+          giftType,
+          giftGroup || null,
+          JSON.stringify(selectedItems),
+          JSON.stringify(productLinks),
+          attachmentUrl || null,
+          request.note || request.customerNote || null,
+          quoteLink
+        ]
+      );
+
+      const requestId = saved.rows[0].request_id;
+      await client.query(
+        `
+        INSERT INTO "B20CustomGiftContacts"
+          (request_id, user_id, full_name, email, phone)
+        VALUES
+          ($1, $2, $3, $4, $5)
+        `,
+        [requestId, user.userId, fullName, email, phone || null]
+      );
+      await insertCustomGiftEvent(client, requestId, {
+        eventType: 'created',
+        status: 'pending_quote',
+        actorType: 'customer',
+        actorId: email,
+        message: 'Khach hang da gui yeu cau thiet ke qua tang.',
+        metadata: { requestCode }
+      });
+
+      const rows = await client.query(
+        `
+        SELECT r.*, c.full_name, c.email, c.phone
+        FROM "B30CustomGiftRequests" r
+        LEFT JOIN "B20CustomGiftContacts" c ON c.request_id = r.request_id
+        WHERE r.request_id = $1
+        LIMIT 1
+        `,
+        [requestId]
+      );
+      return { request: rowToCustomGift(rows.rows[0]), quoteLink };
+    });
+
+    let emailResult = { sent: false, skipped: true };
+    try {
+      emailResult = await sendCustomGiftRequestEmail({
+        request: result.request,
+        quoteLink: result.quoteLink
+      });
+    } catch (err) {
+      emailResult = { sent: false, skipped: false, error: err.message };
+    }
+
+    return res.status(200).json({ ok: true, request: result.request, quoteLink: result.quoteLink, email: emailResult });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+}
+
+async function findCustomGiftForCustomer(client, body) {
+  const code = String(body.requestCode || body.code || '').trim().toUpperCase();
+  const email = normalizeEmail(body.email || body.customerEmail);
+  const user = await resolveUser(client, body.user || {});
+  if (!code) {
+    const err = new Error('Nhap ma yeu cau thiet ke qua.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const params = [code];
+  let ownerSql = '';
+  if (user.userId && email) {
+    params.push(user.userId, email);
+    ownerSql = `AND (r.user_id = $2 OR LOWER(c.email) = $3)`;
+  } else if (user.userId) {
+    params.push(user.userId);
+    ownerSql = `AND r.user_id = $2`;
+  } else if (email) {
+    params.push(email);
+    ownerSql = `AND LOWER(c.email) = $2`;
+  } else {
+    const err = new Error('Nhap email hoac dang nhap de xem yeu cau.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const result = await client.query(
+    `
+    SELECT r.*, c.full_name, c.email, c.phone
+    FROM "B30CustomGiftRequests" r
+    LEFT JOIN "B20CustomGiftContacts" c ON c.request_id = r.request_id
+    WHERE UPPER(r.request_code) = $1
+      ${ownerSql}
+    LIMIT 1
+    `,
+    params
+  );
+
+  if (result.rowCount === 0) {
+    const err = new Error('Khong tim thay yeu cau phu hop.');
+    err.statusCode = 404;
+    throw err;
+  }
+  return rowToCustomGift(result.rows[0]);
+}
+
+async function getCustomGiftRequest(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const result = await withClient(async client => {
+      const request = await findCustomGiftForCustomer(client, body);
+      const events = await client.query(
+        `
+        SELECT event_type, status, actor_type, message, metadata, created_at
+        FROM "B30CustomGiftRequestEvents"
+        WHERE request_id = $1
+        ORDER BY created_at ASC, event_id ASC
+        `,
+        [request.requestId]
+      );
+      return {
+        request,
+        events: events.rows.map(row => ({
+          eventType: row.event_type,
+          status: row.status,
+          actorType: row.actor_type,
+          message: row.message || '',
+          metadata: row.metadata || {},
+          createdAt: toIso(row.created_at)
+        }))
+      };
+    });
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+}
+
+function customGiftCartItem(request) {
+  const price = toNumber(request.quotedAmount, 0);
+  return {
+    id: `custom_${request.requestCode}`,
+    isPkg: true,
+    isCustomGift: true,
+    customGiftRequestCode: request.requestCode,
+    customerEmail: request.customer && request.customer.email || '',
+    name: `Thiết kế quà tặng ${request.giftPackage}`,
+    image: '',
+    pkgPrice: price,
+    priceNum: price,
+    fixedItems: [`Loại quà: ${request.giftType}`],
+    selectedPicks: request.selectedItems || [],
+    productLinks: request.productLinks || [],
+    quantity: 1,
+    selected: true
+  };
+}
+
+async function customerCustomGiftAction(req, res) {
+  if (!requireMethod(req, res, 'POST')) return;
+
+  try {
+    const body = getBody(req);
+    const action = String(body.action || '').trim().toLowerCase();
+    if (!['confirm', 'cancel', 'requote'].includes(action)) {
+      return res.status(400).json({ ok: false, error: 'Hanh dong yeu cau thiet ke khong hop le.' });
+    }
+
+    const result = await withClient(async client => {
+      const request = await findCustomGiftForCustomer(client, body);
+      let nextStatus = request.status;
+      let message = '';
+      let cartItem = null;
+
+      if (action === 'confirm') {
+        if (toNumber(request.quotedAmount, 0) <= 0 || !['quoted', 're_quote_quoted'].includes(request.status)) {
+          const err = new Error('Yeu cau nay chua co bao gia de xac nhan.');
+          err.statusCode = 400;
+          throw err;
+        }
+        nextStatus = 'confirmed';
+        message = 'Khach hang da xac nhan gia va dua san pham vao gio hang.';
+        await client.query(
+          `
+          UPDATE "B30CustomGiftRequests"
+          SET status = 'confirmed',
+              confirmed_at = NOW(),
+              updated_at = NOW()
+          WHERE request_id = $1
+          `,
+          [request.requestId]
+        );
+        cartItem = customGiftCartItem(Object.assign({}, request, { status: nextStatus }));
+      } else if (action === 'cancel') {
+        nextStatus = 'cancelled';
+        message = body.source === 'cart'
+          ? 'Khach hang da xoa san pham thiet ke khoi gio hang.'
+          : 'Khach hang da huy yeu cau thiet ke qua tang.';
+        await client.query(
+          `
+          UPDATE "B30CustomGiftRequests"
+          SET status = 'cancelled',
+              cancelled_at = NOW(),
+              updated_at = NOW()
+          WHERE request_id = $1
+          `,
+          [request.requestId]
+        );
+      } else {
+        nextStatus = 're_quote_requested';
+        message = 'Khach hang yeu cau EmoBox bao gia lai.';
+        await client.query(
+          `
+          UPDATE "B30CustomGiftRequests"
+          SET status = 're_quote_requested',
+              updated_at = NOW()
+          WHERE request_id = $1
+          `,
+          [request.requestId]
+        );
+      }
+
+      await insertCustomGiftEvent(client, request.requestId, {
+        eventType: action,
+        status: nextStatus,
+        actorType: 'customer',
+        actorId: request.customer.email,
+        message,
+        metadata: { note: body.note || '', source: body.source || 'status_page' }
+      });
+
+      const rows = await client.query(
+        `
+        SELECT r.*, c.full_name, c.email, c.phone
+        FROM "B30CustomGiftRequests" r
+        LEFT JOIN "B20CustomGiftContacts" c ON c.request_id = r.request_id
+        WHERE r.request_id = $1
+        LIMIT 1
+        `,
+        [request.requestId]
+      );
+      return { request: rowToCustomGift(rows.rows[0]), cartItem };
+    });
+
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 }
 
@@ -2402,6 +2819,9 @@ async function decidePaymentReview(req, res) {
 const routes = {
   '/api/health': health,
   '/api/contact': saveContactMessage,
+  '/api/custom-gifts/action': customerCustomGiftAction,
+  '/api/custom-gifts/create': createCustomGiftRequest,
+  '/api/custom-gifts/detail': getCustomGiftRequest,
   '/api/orders': saveOrder,
   '/api/orders/confirm-bank-transfer': confirmBankTransfer,
   '/api/orders/history': listOrders,
