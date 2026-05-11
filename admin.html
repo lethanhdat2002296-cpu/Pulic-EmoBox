@@ -190,7 +190,8 @@
       <section id="vouchers" class="section">
         <div class="grid-2">
           <div class="card">
-            <div class="card-title"><h2>Tao voucher</h2></div>
+            <div class="card-title"><h2 id="voucherFormTitle">Tao voucher</h2></div>
+            <input type="hidden" id="editingVoucherId">
             <div class="form-grid">
               <div><label>Ma voucher</label><input id="voucherCode" placeholder="VD: EMOBOX10" maxlength="32"></div>
               <div><label>Chiet khau</label><select id="voucherDiscount"><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option></select></div>
@@ -199,12 +200,13 @@
               <div><label>Hinh thuc gui</label><select id="voucherSendMethod"><option value="email_all">Gui qua toan bo email KH</option><option value="facebook">Dang Facebook</option></select></div>
               <div><label>Link bai Facebook</label><input id="voucherFacebookUrl" placeholder="https://facebook.com/..."></div>
             </div>
-            <button class="btn btn-primary" onclick="createVoucher()" style="margin-top:16px;">Tao voucher</button>
+            <button class="btn btn-primary" id="voucherSubmitBtn" onclick="saveVoucher()" style="margin-top:16px;">Tao voucher</button>
+            <button class="btn btn-ghost" id="voucherCancelBtn" onclick="resetVoucherForm()" style="margin-top:16px; display:none;">Huy cap nhat</button>
             <div class="muted" style="margin-top:10px;">Ma chi gom chu, so, dau gach ngang hoac gach duoi. He thong khong cho tao trung ma.</div>
           </div>
           <div class="card">
             <div class="card-title"><h2>Danh sach voucher</h2><button class="btn btn-ghost" onclick="loadVouchers()">Tai lai</button></div>
-            <div style="overflow:auto;"><table><thead><tr><th>Ma</th><th>Giam</th><th>Ap dung</th><th>Het han</th><th>Da dung</th></tr></thead><tbody id="voucherRows"></tbody></table></div>
+            <div style="overflow:auto;"><table><thead><tr><th>Ma</th><th>Giam</th><th>Ap dung</th><th>Het han</th><th>Da dung</th><th></th></tr></thead><tbody id="voucherRows"></tbody></table></div>
           </div>
         </div>
       </section>
@@ -498,13 +500,59 @@
           <td>${escapeHtml(row.customerTypeLabel || row.customerType)}</td>
           <td>${dateText(row.expiresAt)}<br>${row.active ? '<span class="pill active">Dang bat</span>' : '<span class="pill rejected">Da khoa</span>'}</td>
           <td>${row.usedCount || 0}<br><span class="muted">${money(row.discountTotal || 0)}</span></td>
+          <td><button class="btn btn-ghost" onclick="editVoucherFromData('${encodeURIComponent(JSON.stringify(row))}')">Sua</button></td>
         </tr>
       `);
     }
 
-    async function createVoucher() {
+    function toDatetimeLocal(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    }
+
+    function resetVoucherForm() {
+      document.getElementById('editingVoucherId').value = '';
+      document.getElementById('voucherFormTitle').textContent = 'Tao voucher';
+      document.getElementById('voucherSubmitBtn').textContent = 'Tao voucher';
+      document.getElementById('voucherCancelBtn').style.display = 'none';
+      document.getElementById('voucherCode').value = '';
+      document.getElementById('voucherDiscount').value = '5';
+      document.getElementById('voucherCustomerType').value = 'all';
+      document.getElementById('voucherExpiresAt').value = '';
+      document.getElementById('voucherSendMethod').value = 'email_all';
+      document.getElementById('voucherFacebookUrl').value = '';
+    }
+
+    function editVoucher(voucher) {
+      document.getElementById('editingVoucherId').value = voucher.voucherId || '';
+      document.getElementById('voucherFormTitle').textContent = `Cap nhat voucher ${voucher.code}`;
+      document.getElementById('voucherSubmitBtn').textContent = 'Cap nhat voucher';
+      document.getElementById('voucherCancelBtn').style.display = '';
+      document.getElementById('voucherCode').value = voucher.code || '';
+      document.getElementById('voucherDiscount').value = String(voucher.discountPercent || 5);
+      document.getElementById('voucherCustomerType').value = voucher.customerType || 'all';
+      document.getElementById('voucherExpiresAt').value = toDatetimeLocal(voucher.expiresAt);
+      document.getElementById('voucherSendMethod').value = voucher.sendMethod || 'email_all';
+      document.getElementById('voucherFacebookUrl').value = voucher.facebookPostUrl || '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function editVoucherFromData(value) {
       try {
+        editVoucher(JSON.parse(decodeURIComponent(value)));
+      } catch (err) {
+        toast('Khong doc duoc thong tin voucher.');
+      }
+    }
+
+    async function saveVoucher() {
+      try {
+        const voucherId = document.getElementById('editingVoucherId').value;
         const payload = {
+          voucherId,
           code: document.getElementById('voucherCode').value.trim(),
           discountPercent: Number(document.getElementById('voucherDiscount').value),
           customerType: document.getElementById('voucherCustomerType').value,
@@ -512,12 +560,11 @@
           sendMethod: document.getElementById('voucherSendMethod').value,
           facebookPostUrl: document.getElementById('voucherFacebookUrl').value.trim()
         };
-        const data = await adminRequest('create-voucher', payload);
+        const data = await adminRequest(voucherId ? 'update-voucher' : 'create-voucher', payload);
         renderVouchers(data.vouchers || []);
-        document.getElementById('voucherCode').value = '';
-        document.getElementById('voucherFacebookUrl').value = '';
+        resetVoucherForm();
         const emailText = data.email && data.email.sent ? ` Da gui ${data.email.count || 0} email.` : '';
-        toast('Da tao voucher.' + emailText);
+        toast(voucherId ? 'Da cap nhat voucher.' : 'Da tao voucher.' + emailText);
       } catch (err) {
         toast(err.message);
       }
