@@ -266,7 +266,7 @@ async function listVouchers(client) {
   return result.rows.map(voucherRow);
 }
 
-async function createVoucherRecord(client, body) {
+function readVoucherPayload(body) {
   const code = normalizeVoucherCode(body.code);
   const discountPercent = Number(body.discountPercent || body.discount_percent || 0);
   const customerType = String(body.customerType || body.customer_type || 'all').trim();
@@ -302,6 +302,19 @@ async function createVoucherRecord(client, body) {
     err.statusCode = 400;
     throw err;
   }
+
+  return { code, discountPercent, customerType, sendMethod, facebookPostUrl, expiresAt };
+}
+
+async function createVoucherRecord(client, body) {
+  const {
+    code,
+    discountPercent,
+    customerType,
+    sendMethod,
+    facebookPostUrl,
+    expiresAt
+  } = readVoucherPayload(body);
 
   const duplicate = await client.query(
     'SELECT voucher_id FROM "B30Vouchers" WHERE UPPER(code) = UPPER($1) LIMIT 1',
@@ -349,6 +362,81 @@ async function createVoucherRecord(client, body) {
     voucherEmail: sendMethod === 'email_all'
       ? { voucher, recipients: recipientEmails }
       : null
+  };
+}
+
+async function updateVoucherRecord(client, body) {
+  const voucherId = Number(body.voucherId || body.voucher_id || 0);
+  if (!voucherId) {
+    const err = new Error('Thieu voucherId de cap nhat.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const {
+    code,
+    discountPercent,
+    customerType,
+    sendMethod,
+    facebookPostUrl,
+    expiresAt
+  } = readVoucherPayload(body);
+
+  const existing = await client.query(
+    'SELECT voucher_id FROM "B30Vouchers" WHERE voucher_id = $1 LIMIT 1',
+    [voucherId]
+  );
+  if (existing.rowCount === 0) {
+    const err = new Error('Khong tim thay voucher can cap nhat.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const duplicate = await client.query(
+    'SELECT voucher_id FROM "B30Vouchers" WHERE UPPER(code) = UPPER($1) AND voucher_id <> $2 LIMIT 1',
+    [code, voucherId]
+  );
+  if (duplicate.rowCount > 0) {
+    const err = new Error('Ma voucher da ton tai. Vui long dung ma khac.');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const saved = await client.query(
+    `
+    UPDATE "B30Vouchers"
+    SET code = $2,
+        discount_percent = $3,
+        customer_type = $4,
+        expires_at = $5,
+        send_method = $6,
+        send_status = CASE
+          WHEN $6 = 'facebook' THEN 'facebook_ready'
+          WHEN send_status = 'created' THEN 'email_requested'
+          ELSE send_status
+        END,
+        facebook_post_url = $7,
+        updated_at = NOW()
+    WHERE voucher_id = $1
+    RETURNING *
+    `,
+    [voucherId, code, discountPercent, customerType, expiresAt.toISOString(), sendMethod, facebookPostUrl || null]
+  );
+
+  await client.query(
+    'UPDATE "B30Orders" SET voucher_code = $2, updated_at = NOW() WHERE voucher_id = $1',
+    [voucherId, code]
+  );
+  await client.query(
+    'UPDATE "B30VoucherRedemptions" SET voucher_code = $2 WHERE voucher_id = $1',
+    [voucherId, code]
+  );
+
+  return {
+    voucher: voucherRow(Object.assign({}, saved.rows[0], {
+      used_count: 0,
+      discount_total: 0
+    }))
   };
 }
 
@@ -1223,6 +1311,16 @@ module.exports = async function handler(req, res) {
           voucher: result.voucher,
           vouchers: await listVouchers(client),
           voucherEmail: result.voucherEmail
+        };
+      });
+    }
+
+    if (action === 'update-voucher') {
+      return await protectedRoute(req, res, body, async client => {
+        const result = await updateVoucherRecord(client, body);
+        return {
+          voucher: result.voucher,
+          vouchers: await listVouchers(client)
         };
       });
     }
