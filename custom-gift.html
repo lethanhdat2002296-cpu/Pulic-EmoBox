@@ -199,16 +199,43 @@
     };
 
     const itemSuggestions = {
-      default: ['Thiệp viết tay', 'Hoa khô', 'Nến thơm', 'Chocolate', 'Gấu bông nhỏ', 'Trà/cà phê', 'Tinh dầu', 'Phụ kiện trang trí'],
-      tet: ['Lì xì', 'Trà Tết', 'Mứt', 'Lịch để bàn', 'Hạt dinh dưỡng', 'Chocolate đỏ'],
-      valentine: ['Chocolate', 'Hoa sáp', 'Nến thơm', 'Gấu bông', 'Thiệp tình yêu', 'Nước hoa mini'],
-      'healing-self-care': ['Tinh dầu', 'Muối tắm', 'Trà thư giãn', 'Nến thơm', 'Sổ tay', 'Mặt nạ chăm sóc']
+      'an-ui-dong-vien': ['Trà ấm', 'Nến thư giãn', 'Sổ động viên', 'Thiệp an ủi', 'Chocolate dịu ngọt', 'Gấu ôm nhỏ', 'Khăn giấy cao cấp', 'Tinh dầu nhẹ'],
+      'xin-loi-lam-hoa': ['Thiệp xin lỗi', 'Hoa khô', 'Chocolate', 'Nến thơm', 'Charm hòa giải', 'Trà hoa', 'Bookmark lời nhắn', 'Móc khóa kỷ niệm'],
+      'tiep-suc-truyen-dong-luc': ['Sổ tay mục tiêu', 'Bút ký', 'Cà phê năng lượng', 'Snack lành mạnh', 'Bookmark cổ vũ', 'Thiệp truyền động lực', 'Ly giữ nhiệt mini', 'Sticker tích cực'],
+      'yeu-thuong-quan-tam': ['Hoa sáp', 'Chocolate', 'Nến thơm', 'Gấu bông', 'Album ảnh mini', 'Móc khóa đôi', 'Thiệp yêu thương', 'Nước hoa mini'],
+      'chuc-mung-an-mung': ['Thiệp chúc mừng', 'Pháo giấy mini', 'Chocolate', 'Ly sứ', 'Bóng trang trí', 'Hoa khô', 'Bánh quy', 'Ruy băng cao cấp'],
+      'healing-self-care': ['Tinh dầu', 'Muối tắm', 'Trà thư giãn', 'Nến thơm', 'Sổ tay', 'Mặt nạ chăm sóc', 'Túi thơm', 'Thanh lăn thư giãn'],
+      tet: ['Lì xì', 'Trà Tết', 'Mứt', 'Lịch để bàn', 'Hạt dinh dưỡng', 'Chocolate đỏ', 'Charm may mắn', 'Thiệp chúc Tết'],
+      valentine: ['Chocolate', 'Hoa sáp', 'Nến thơm', 'Gấu bông', 'Thiệp tình yêu', 'Nước hoa mini', 'Album ảnh mini', 'Móc khóa đôi'],
+      '8-3-20-10': ['Hoa sáp', 'Nến thơm', 'Son dưỡng', 'Túi thơm', 'Thiệp tri ân', 'Trà hoa', 'Gương mini', 'Khăn lụa nhỏ'],
+      'trung-thu': ['Bánh Trung Thu mini', 'Trà sen', 'Lồng đèn nhỏ', 'Thiệp đoàn viên', 'Hạt dinh dưỡng', 'Mứt', 'Hoa khô', 'Bookmark trăng rằm'],
+      '20-11': ['Bút ký', 'Sổ tay', 'Trà', 'Thiệp tri ân', 'Hoa khô', 'Bookmark', 'Cà phê', 'Khung ảnh mini'],
+      noel: ['Thiệp Giáng Sinh', 'Nến thơm', 'Tất Noel', 'Chocolate', 'Bánh quy gừng', 'Quả châu trang trí', 'Túi thơm quế', 'Gấu bông Noel']
     };
 
     let uploadedImageData = '';
 
     function currentUser() {
       try { return JSON.parse(localStorage.getItem('emobox_user') || 'null'); } catch (err) { return null; }
+    }
+
+    function hasPaidPlan(user) {
+      return Boolean(user && user.plan && user.plan !== 'none');
+    }
+
+    function enforceMemberAccess() {
+      const user = currentUser();
+      if (!user) {
+        showToast('Vui lòng đăng nhập gói thành viên để dùng chức năng thiết kế quà.');
+        setTimeout(() => { window.location.href = 'login.html'; }, 900);
+        return false;
+      }
+      if (!hasPaidPlan(user)) {
+        showToast('Chức năng thiết kế quà chỉ dành cho thành viên đang sử dụng gói.');
+        setTimeout(() => { window.location.href = 'plans.html'; }, 1000);
+        return false;
+      }
+      return true;
     }
 
     function prefillUser() {
@@ -266,6 +293,7 @@
 
     document.getElementById('customGiftForm').addEventListener('submit', async event => {
       event.preventDefault();
+      if (!enforceMemberAccess()) return;
       const typeSelect = document.getElementById('giftType');
       const request = {
         customer: {
@@ -301,8 +329,10 @@
       renderGiftTypes();
     });
 
-    prefillUser();
-    renderGiftTypes();
+    if (enforceMemberAccess()) {
+      prefillUser();
+      renderGiftTypes();
+    }
   </script>
 </body>
 </html>
