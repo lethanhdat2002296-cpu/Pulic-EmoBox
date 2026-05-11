@@ -6,7 +6,7 @@ const {
   toNumber,
   withClient
 } = require('../lib/db');
-const { sendOrderStatusEmail, sendVoucherEmail } = require('../lib/email');
+const { sendCustomGiftQuoteEmail, sendOrderStatusEmail, sendVoucherEmail } = require('../lib/email');
 
 const DEFAULT_SETTINGS = {
   reviewMode: 'manual',
@@ -483,6 +483,157 @@ async function insertOrderTrackingEvent(client, event) {
       event.metadata ? JSON.stringify(event.metadata) : null
     ]
   );
+}
+
+function customGiftStatusLabel(value) {
+  const labels = {
+    pending_quote: 'Cho bao gia',
+    quoted: 'Da bao gia',
+    re_quote_requested: 'Yeu cau bao gia lai',
+    re_quote_quoted: 'Da bao gia lai',
+    confirmed: 'Khach da xac nhan',
+    ordered: 'Da tao don hang',
+    ordered_paid: 'Da thanh toan',
+    cancelled: 'Da huy'
+  };
+  return labels[value] || value || 'Chua ro';
+}
+
+function adminBaseUrl(body = {}) {
+  const base = String(body.origin || body.baseUrl || process.env.APP_URL || process.env.PUBLIC_APP_URL || '').trim();
+  return base && base !== 'null' ? base.replace(/\/+$/, '') : '';
+}
+
+function adminCustomGiftLink(body, requestCode, email) {
+  const query = `code=${encodeURIComponent(requestCode)}&email=${encodeURIComponent(email || '')}`;
+  const base = adminBaseUrl(body);
+  return base ? `${base}/custom-gift-status.html?${query}` : `custom-gift-status.html?${query}`;
+}
+
+function customGiftAdminRow(row) {
+  return {
+    requestId: row.request_id,
+    requestCode: row.request_code,
+    giftPackage: row.gift_package,
+    giftType: row.gift_type,
+    giftGroup: row.gift_group || '',
+    selectedItems: Array.isArray(row.selected_items) ? row.selected_items : [],
+    productLinks: Array.isArray(row.product_links) ? row.product_links : [],
+    attachmentUrl: row.attachment_url || '',
+    customerNote: row.customer_note || '',
+    quotedAmount: row.quoted_amount === null || row.quoted_amount === undefined ? null : Number(row.quoted_amount || 0),
+    quoteNote: row.quote_note || '',
+    quoteLink: row.quote_link || '',
+    status: row.status,
+    statusLabel: customGiftStatusLabel(row.status),
+    orderId: row.order_id || null,
+    customer: {
+      name: row.full_name || '',
+      email: row.email || '',
+      phone: row.phone || ''
+    },
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    quotedAt: toIso(row.quoted_at),
+    confirmedAt: toIso(row.confirmed_at),
+    cancelledAt: toIso(row.cancelled_at)
+  };
+}
+
+async function listCustomGiftRequests(client) {
+  const result = await client.query(
+    `
+    SELECT r.*, c.full_name, c.email, c.phone
+    FROM "B30CustomGiftRequests" r
+    LEFT JOIN "B20CustomGiftContacts" c ON c.request_id = r.request_id
+    ORDER BY
+      CASE r.status
+        WHEN 'pending_quote' THEN 1
+        WHEN 're_quote_requested' THEN 2
+        WHEN 'quoted' THEN 3
+        WHEN 'confirmed' THEN 4
+        ELSE 5
+      END,
+      r.updated_at DESC,
+      r.request_id DESC
+    LIMIT 100
+    `
+  );
+  return result.rows.map(customGiftAdminRow);
+}
+
+async function quoteCustomGiftRequest(client, body, admin) {
+  const requestCode = String(body.requestCode || '').trim().toUpperCase();
+  const amount = toNumber(body.amount || body.quotedAmount, 0);
+  const note = String(body.note || body.quoteNote || '').trim();
+  if (!requestCode || amount <= 0) {
+    const err = new Error('Nhap ma yeu cau va gia bao hop le.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const current = await client.query(
+    `
+    SELECT r.*, c.full_name, c.email, c.phone
+    FROM "B30CustomGiftRequests" r
+    LEFT JOIN "B20CustomGiftContacts" c ON c.request_id = r.request_id
+    WHERE UPPER(r.request_code) = $1
+    LIMIT 1
+    FOR UPDATE OF r
+    `,
+    [requestCode]
+  );
+  if (current.rowCount === 0) {
+    const err = new Error('Khong tim thay yeu cau thiet ke.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const row = current.rows[0];
+  const nextStatus = row.status === 're_quote_requested' ? 're_quote_quoted' : 'quoted';
+  const quoteLink = adminCustomGiftLink(body, row.request_code, row.email);
+  await client.query(
+    `
+    UPDATE "B30CustomGiftRequests"
+    SET quoted_amount = $2,
+        quote_note = $3,
+        quote_link = $4,
+        status = $5,
+        admin_id = $6,
+        quoted_at = NOW(),
+        updated_at = NOW()
+    WHERE request_id = $1
+    `,
+    [row.request_id, amount, note || null, quoteLink, nextStatus, admin.admin_id]
+  );
+  await client.query(
+    `
+    INSERT INTO "B30CustomGiftRequestEvents"
+      (request_id, event_type, status, actor_type, actor_id, message, metadata)
+    VALUES
+      ($1, 'quoted', $2, 'admin', $3, 'Admin da gui bao gia cho khach hang.', $4::jsonb)
+    `,
+    [row.request_id, nextStatus, String(admin.admin_id), JSON.stringify({ amount, note, quoteLink })]
+  );
+
+  const updated = await client.query(
+    `
+    SELECT r.*, c.full_name, c.email, c.phone
+    FROM "B30CustomGiftRequests" r
+    LEFT JOIN "B20CustomGiftContacts" c ON c.request_id = r.request_id
+    WHERE r.request_id = $1
+    LIMIT 1
+    `,
+    [row.request_id]
+  );
+  const request = customGiftAdminRow(updated.rows[0]);
+  return {
+    request,
+    customGiftQuoteEmail: {
+      request,
+      quoteLink
+    }
+  };
 }
 
 async function readOrderForEmail(client, orderId) {
@@ -1187,6 +1338,14 @@ async function protectedRoute(req, res, body, handler) {
     }));
     delete result.voucherEmail;
   }
+  if (result.customGiftQuoteEmail) {
+    result.email = await sendCustomGiftQuoteEmail(result.customGiftQuoteEmail).catch(err => ({
+      sent: false,
+      skipped: false,
+      error: err.message
+    }));
+    delete result.customGiftQuoteEmail;
+  }
   return res.status(200).json({ ok: true, ...result });
 }
 
@@ -1298,6 +1457,23 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    if (action === 'custom-gifts') {
+      return await protectedRoute(req, res, body, async client => ({
+        requests: await listCustomGiftRequests(client)
+      }));
+    }
+
+    if (action === 'quote-custom-gift') {
+      return await protectedRoute(req, res, body, async (client, admin) => {
+        const result = await quoteCustomGiftRequest(client, body, admin);
+        return {
+          request: result.request,
+          requests: await listCustomGiftRequests(client),
+          customGiftQuoteEmail: result.customGiftQuoteEmail
+        };
+      });
+    }
+
     if (action === 'vouchers') {
       return await protectedRoute(req, res, body, async client => ({
         vouchers: await listVouchers(client)
@@ -1326,7 +1502,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'sweep') {
-      return await protectedRoute(req, res, body, async client => {
+      return await protectedRoute(req, res, body, async (client, admin) => {
         requirePaymentReviewPermission(admin);
         const settings = Object.assign({}, await getSettings(client), { reviewMode: 'auto' });
         const sweep = await runAutoReviewSweep(client, settings);
