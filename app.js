@@ -146,7 +146,7 @@ function renderFeaturedBoxes() {
 function handleLogout(e) {
   if (e) e.preventDefault();
   localStorage.removeItem('emobox_user');
-  window.location.reload();
+  window.location.href = 'login.html';
 }
 
 // Khởi chạy khi load
