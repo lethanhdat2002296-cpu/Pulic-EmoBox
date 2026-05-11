@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Intercept calendar and wallet links
-  const protectedLinks = document.querySelectorAll('a[href="calendar.html"], a[href="wallet.html"]');
+  const protectedLinks = document.querySelectorAll('a[href="calendar.html"], a[href="wallet.html"], a[href="custom-gift.html"]');
   protectedLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       const user = JSON.parse(localStorage.getItem('emobox_user'));
