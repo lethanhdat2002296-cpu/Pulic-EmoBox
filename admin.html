@@ -87,6 +87,7 @@
       <nav class="nav-stack">
         <button class="nav-btn active" data-section="reports">Báo cáo</button>
         <button class="nav-btn" data-section="reviews">Đối soát thanh toán</button>
+        <button class="nav-btn" data-section="customGifts">Báo giá thiết kế</button>
         <button class="nav-btn" data-section="settings">Cấu hình chức năng</button>
         <button class="nav-btn" data-section="admins">Tài khoản Admin</button>
         <button class="nav-btn" data-section="vouchers">Voucher</button>
@@ -184,6 +185,19 @@
             <strong>10 giây</strong>
           </div>
           <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:16px;">Lưu cấu hình</button>
+        </div>
+      </section>
+
+      <section id="customGifts" class="section">
+        <div class="card">
+          <div class="card-title">
+            <div>
+              <h2>Báo giá thiết kế quà tặng</h2>
+              <div class="muted">Xem yêu cầu khách gửi, nhập giá và gửi link xác nhận giá cho khách.</div>
+            </div>
+            <button class="btn btn-primary" onclick="loadCustomGifts()">Tải yêu cầu</button>
+          </div>
+          <div id="customGiftList"></div>
         </div>
       </section>
 
@@ -390,6 +404,76 @@
       `).join('');
     }
 
+    function customGiftStatusPill(value, label) {
+      const className = ['confirmed', 'ordered', 'ordered_paid'].includes(value) ? 'paid' : value === 'cancelled' ? 'rejected' : '';
+      return `<span class="pill ${className}">${escapeHtml(label || value || 'Chưa rõ')}</span>`;
+    }
+
+    function renderCustomGifts(requests) {
+      const list = document.getElementById('customGiftList');
+      if (!requests || !requests.length) {
+        list.innerHTML = '<div class="muted">Chưa có yêu cầu thiết kế quà tặng.</div>';
+        return;
+      }
+      list.innerHTML = requests.map(item => {
+        const links = (item.productLinks || []).map(link => `<a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link)}</a>`).join('<br>');
+        const selected = (item.selectedItems || []).map(escapeHtml).join(', ');
+        const canQuote = !['confirmed', 'ordered', 'ordered_paid', 'cancelled'].includes(item.status);
+        return `
+          <div class="review-card">
+            <div>
+              <div class="review-title">${escapeHtml(item.requestCode)} - ${escapeHtml(item.giftPackage)}</div>
+              <div class="muted">${escapeHtml(item.giftType)} ${item.giftGroup ? '• ' + escapeHtml(item.giftGroup) : ''} • ${customGiftStatusPill(item.status, item.statusLabel)}</div>
+              <div class="muted">${escapeHtml(item.customer && item.customer.name || 'Khách')} • ${escapeHtml(item.customer && item.customer.email || '')} • ${escapeHtml(item.customer && item.customer.phone || '')}</div>
+              <div class="muted">Món chọn: ${selected || 'Chưa chọn'}</div>
+              ${item.customerNote ? `<div class="muted">Ghi chú: ${escapeHtml(item.customerNote)}</div>` : ''}
+            </div>
+            <div>
+              <strong>${item.quotedAmount ? money(item.quotedAmount) : 'Chưa báo giá'}</strong><br>
+              <span class="muted">Tạo: ${dateText(item.createdAt)}</span><br>
+              ${links || '<span class="muted">Không có link sản phẩm</span>'}
+              ${item.attachmentUrl ? `<br><a href="${escapeHtml(item.attachmentUrl)}" target="_blank">Xem hình đính kèm</a>` : ''}
+            </div>
+            <div class="review-actions">
+              ${canQuote ? `<button class="btn btn-primary" onclick="quoteCustomGift('${item.requestCode}', ${Number(item.quotedAmount || 0)})">Gửi báo giá</button>` : '<span class="muted">Đã khóa báo giá</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadCustomGifts() {
+      try {
+        const data = await adminRequest('custom-gifts');
+        renderCustomGifts(data.requests || []);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function quoteCustomGift(requestCode, currentAmount) {
+      const amountText = window.prompt(`Nhập giá báo cho ${requestCode}:`, currentAmount ? String(currentAmount) : '');
+      if (amountText === null) return;
+      const amount = Number(String(amountText).replace(/[^\d]/g, ''));
+      if (!amount || amount <= 0) {
+        toast('Giá báo không hợp lệ.');
+        return;
+      }
+      const note = window.prompt('Ghi chú gửi khách:', 'Giá đã bao gồm hộp quà và sản phẩm đính kèm theo yêu cầu.') || '';
+      try {
+        const data = await adminRequest('quote-custom-gift', {
+          origin: window.location.origin,
+          requestCode,
+          amount,
+          note
+        });
+        renderCustomGifts(data.requests || []);
+        toast(data.email && data.email.sent ? 'Đã gửi email báo giá cho khách.' : 'Đã lưu báo giá, email chưa gửi được.');
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
     function applyAdminPermissions(permissions) {
       const canReview = !permissions || permissions.canReviewPayments !== false;
       document.querySelectorAll('[data-section="reviews"], [data-section="settings"]').forEach(button => {
@@ -580,6 +664,7 @@
         if (button.dataset.section === 'admins') loadAdmins();
         if (button.dataset.section === 'reviews') loadReviews();
         if (button.dataset.section === 'vouchers') loadVouchers();
+        if (button.dataset.section === 'customGifts') loadCustomGifts();
       });
     });
 
