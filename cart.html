@@ -262,7 +262,14 @@
             name = item.name;
             image = item.image ? `<img src="${item.image}" class="cart-item-img">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:linear-gradient(135deg,#e0f2fe,#bae6fd);">🎁</div>`;
             
-            if (item.id && item.id.startsWith('evt_')) {
+            if (item.isCustomGift) {
+              let details = [...(item.fixedItems || []), ...(item.selectedPicks || [])].filter(Boolean).join(', ');
+              desc = `
+                <span style="color:#0284c7;font-size:0.85rem;font-weight:600;">Thiết kế quà tặng theo yêu cầu</span>
+                <span style="display:block; color:var(--text-muted); font-size:0.8rem; margin-top:0.35rem;">Mã yêu cầu: ${item.customGiftRequestCode || item.id}</span>
+                <span style="display:block; color:var(--text-muted); font-size:0.8rem; margin-top:0.25rem;">Chi tiết: ${details || 'Theo báo giá EmoBox'}</span>
+              `;
+            } else if (item.id && item.id.startsWith('evt_')) {
               let details = [...(item.fixedItems || []), ...(item.selectedPicks || [])].filter(Boolean).join(', ');
               desc = `
                 <span style="color:#0284c7;font-size:0.85rem;font-weight:600;">📅 Đặt lịch quà tặng cho: ${item.recipient || 'Người nhận'}</span>
@@ -343,6 +350,7 @@
       if (item) {
         item.quantity += delta;
         if (item.quantity <= 0) {
+          cancelCustomGiftIfNeeded(item);
           cart = cart.filter(i => i.id !== id);
         }
         localStorage.setItem('emobox_cart', JSON.stringify(cart));
@@ -352,10 +360,21 @@
     }
 
     function removeFromCart(id) {
+      const item = cart.find(i => i.id === id);
+      cancelCustomGiftIfNeeded(item);
       cart = cart.filter(i => i.id !== id);
       localStorage.setItem('emobox_cart', JSON.stringify(cart));
       updateCartBadge();
       renderCart();
+    }
+
+    function cancelCustomGiftIfNeeded(item) {
+      if (!item || !item.isCustomGift || !item.customGiftRequestCode || !window.EmoBoxApi) return;
+      const user = JSON.parse(localStorage.getItem('emobox_user') || 'null');
+      const email = item.customerEmail || (user && user.email) || '';
+      if (!email) return;
+      EmoBoxApi.customGiftAction(item.customGiftRequestCode, email, 'cancel', user, { source: 'cart' })
+        .catch(err => console.warn('[EmoBox] Khong huy duoc yeu cau thiet ke:', err.message));
     }
 
     function toggleSelect(id, checked) {
