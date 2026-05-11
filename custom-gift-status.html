@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Theo dõi thiết kế quà tặng - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f5fbff; }
+    .status-wrap { padding: 112px 0 56px; }
+    .status-shell { max-width: 920px; margin: 0 auto; }
+    .status-head h1 { font-family: "Playfair Display", serif; font-size: clamp(2rem, 4vw, 3rem); margin: 0 0 10px; color: #083344; }
+    .status-head p { color: #34708f; line-height: 1.7; margin: 0 0 22px; }
+    .panel { background: #fff; border: 1px solid #b9ddf3; border-radius: 8px; padding: 22px; box-shadow: 0 18px 45px rgba(14, 116, 144, 0.08); }
+    .lookup { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; margin-bottom: 18px; }
+    input { width: 100%; border: 1px solid #9ed3f1; border-radius: 8px; padding: 12px 13px; font: inherit; outline: none; }
+    input:focus { border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12); }
+    .request-card { display: none; margin-top: 18px; }
+    .request-grid { display: grid; grid-template-columns: 1fr 0.85fr; gap: 16px; }
+    .info-line { padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #334155; display: flex; justify-content: space-between; gap: 16px; }
+    .info-line strong { color: #0f3d56; }
+    .price-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 18px; }
+    .price { font-size: 2rem; font-weight: 800; color: #0284c7; margin: 8px 0; }
+    .pill { display: inline-flex; border-radius: 999px; padding: 5px 10px; background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.78rem; }
+    .pill.good { background: #dcfce7; color: #166534; }
+    .pill.bad { background: #fee2e2; color: #991b1b; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .muted-list { color: #64748b; line-height: 1.65; margin: 8px 0 0; padding-left: 18px; }
+    @media (max-width: 760px) {
+      .lookup, .request-grid { grid-template-columns: 1fr; }
+      .status-wrap { padding-top: 92px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo"><img src="Logo.png" alt="EmoBox Logo" style="height:32px;object-fit:contain;"></a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang chủ</a>
+        <a href="emotion-gifts.html" class="nav-link">Quà cảm xúc</a>
+        <a href="occasion-gifts.html" class="nav-link">Quà theo dịp</a>
+        <a href="custom-gift.html" class="nav-link active">Thiết kế quà</a>
+        <a href="plans.html" class="nav-link">Gói thành viên</a>
+        <a href="calendar.html" class="nav-link">Đặt lịch</a>
+        <a href="contact.html" class="nav-link">Liên hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">🛍️<span class="cart-badge" id="cartBadge">0</span></a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header"><div class="user-avatar-sm">U</div><div><p class="user-name">Tài khoản</p><p class="user-sub">Xem thông tin của bạn</p></div></div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">Hồ sơ</a>
+            <a href="order-history.html" class="user-menu-item">Lịch sử đơn hàng</a>
+            <a href="track-order.html" class="user-menu-item">Theo dõi đơn hàng</a>
+            <a href="wallet.html" class="user-menu-item">Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="status-wrap">
+    <div class="container status-shell">
+      <div class="status-head">
+        <h1>Theo dõi thiết kế quà tặng</h1>
+        <p>Nhập mã yêu cầu và email để xem báo giá, xác nhận đưa sản phẩm vào giỏ hàng, hủy yêu cầu hoặc yêu cầu EmoBox báo giá lại.</p>
+      </div>
+
+      <section class="panel">
+        <div class="lookup">
+          <input id="requestCode" placeholder="Mã yêu cầu, ví dụ CG..." />
+          <input id="customerEmail" type="email" placeholder="Email nhận thông báo" />
+          <button class="btn btn-primary" onclick="loadRequest()">Kiểm tra</button>
+        </div>
+        <div id="message" class="hint"></div>
+
+        <div class="request-card" id="requestCard">
+          <div class="request-grid">
+            <div>
+              <div class="info-line"><span>Mã yêu cầu</span><strong id="vCode"></strong></div>
+              <div class="info-line"><span>Trạng thái</span><strong id="vStatus"></strong></div>
+              <div class="info-line"><span>Gói quà</span><strong id="vPackage"></strong></div>
+              <div class="info-line"><span>Loại quà</span><strong id="vType"></strong></div>
+              <div class="info-line"><span>Khách hàng</span><strong id="vCustomer"></strong></div>
+              <div class="info-line"><span>Ngày gửi</span><strong id="vCreated"></strong></div>
+              <div style="margin-top:14px;">
+                <strong>Sản phẩm đã chọn</strong>
+                <ul class="muted-list" id="vItems"></ul>
+              </div>
+            </div>
+            <aside class="price-box">
+              <div class="muted">Giá EmoBox báo</div>
+              <div class="price" id="vPrice">Chưa có</div>
+              <p class="muted" id="vNote"></p>
+              <div class="btn-row" id="actionButtons"></div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let currentRequest = null;
+
+    function user() {
+      try { return JSON.parse(localStorage.getItem('emobox_user') || 'null'); } catch (err) { return null; }
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+    }
+
+    function dateText(value) {
+      if (!value) return '';
+      return new Date(value).toLocaleString('vi-VN');
+    }
+
+    function statusLabel(status) {
+      return {
+        pending_quote: 'Chờ EmoBox báo giá',
+        quoted: 'Đã báo giá',
+        re_quote_requested: 'Đã yêu cầu báo giá lại',
+        re_quote_quoted: 'Đã báo giá lại',
+        confirmed: 'Đã xác nhận giá',
+        ordered: 'Đã tạo đơn hàng',
+        ordered_paid: 'Đã thanh toán',
+        cancelled: 'Đã hủy'
+      }[status] || status || 'Chưa rõ';
+    }
+
+    function statusClass(status) {
+      if (['confirmed', 'ordered', 'ordered_paid'].includes(status)) return 'good';
+      if (status === 'cancelled') return 'bad';
+      return '';
+    }
+
+    async function loadRequest() {
+      const code = document.getElementById('requestCode').value.trim();
+      const email = document.getElementById('customerEmail').value.trim();
+      const result = await EmoBoxApi.getCustomGiftRequest(code, email, user());
+      if (!result.ok) {
+        document.getElementById('message').textContent = result.error || 'Không tìm thấy yêu cầu.';
+        document.getElementById('requestCard').style.display = 'none';
+        return;
+      }
+      currentRequest = result.request;
+      renderRequest();
+    }
+
+    function renderRequest() {
+      const request = currentRequest;
+      document.getElementById('message').textContent = '';
+      document.getElementById('requestCard').style.display = 'block';
+      document.getElementById('vCode').textContent = request.requestCode;
+      document.getElementById('vStatus').innerHTML = `<span class="pill ${statusClass(request.status)}">${statusLabel(request.status)}</span>`;
+      document.getElementById('vPackage').textContent = request.giftPackage || '';
+      document.getElementById('vType').textContent = request.giftType || '';
+      document.getElementById('vCustomer').textContent = `${request.customer.name || ''} - ${request.customer.email || ''}`;
+      document.getElementById('vCreated').textContent = dateText(request.createdAt);
+      document.getElementById('vPrice').textContent = request.quotedAmount ? money(request.quotedAmount) : 'Chưa có';
+      document.getElementById('vNote').textContent = request.quoteNote || 'EmoBox sẽ gửi ghi chú báo giá tại đây nếu có.';
+      document.getElementById('vItems').innerHTML = (request.selectedItems || []).length
+        ? request.selectedItems.map(item => `<li>${item}</li>`).join('')
+        : '<li>Chưa chọn món cụ thể</li>';
+
+      const canConfirm = ['quoted', 're_quote_quoted'].includes(request.status) && Number(request.quotedAmount || 0) > 0;
+      const isClosed = ['cancelled', 'ordered', 'ordered_paid'].includes(request.status);
+      document.getElementById('actionButtons').innerHTML = isClosed
+        ? '<span class="muted">Yêu cầu này đã kết thúc.</span>'
+        : `
+          <button class="btn btn-primary" ${canConfirm ? '' : 'disabled style="opacity:.55;cursor:not-allowed"'} onclick="confirmPrice()">Xác nhận giá</button>
+          <button class="btn" style="background:#e0f2fe;color:#075985;" onclick="requestRequote()">Báo giá lại</button>
+          <button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="cancelRequest()">Hủy sản phẩm</button>
+        `;
+    }
+
+    async function confirmPrice() {
+      if (!currentRequest) return;
+      const result = await EmoBoxApi.customGiftAction(currentRequest.requestCode, currentRequest.customer.email, 'confirm', user());
+      if (!result.ok) {
+        showToast(result.error || 'Không xác nhận được giá.');
+        return;
+      }
+      const cartItem = result.cartItem;
+      if (cartItem) {
+        let cartItems = JSON.parse(localStorage.getItem('emobox_cart') || '[]');
+        cartItems = cartItems.filter(item => item.customGiftRequestCode !== cartItem.customGiftRequestCode && item.id !== cartItem.id);
+        cartItems.push(cartItem);
+        localStorage.setItem('emobox_cart', JSON.stringify(cartItems));
+      }
+      showToast('Đã đưa sản phẩm thiết kế vào giỏ hàng.');
+      setTimeout(() => { window.location.href = 'cart.html'; }, 700);
+    }
+
+    async function cancelRequest() {
+      if (!currentRequest || !window.confirm('Bạn chắc chắn muốn hủy yêu cầu thiết kế này?')) return;
+      const result = await EmoBoxApi.customGiftAction(currentRequest.requestCode, currentRequest.customer.email, 'cancel', user());
+      if (!result.ok) {
+        showToast(result.error || 'Không hủy được yêu cầu.');
+        return;
+      }
+      removeRequestFromCart(currentRequest.requestCode);
+      currentRequest = result.request;
+      renderRequest();
+      showToast('Đã hủy yêu cầu thiết kế.');
+    }
+
+    async function requestRequote() {
+      if (!currentRequest) return;
+      const note = window.prompt('Bạn muốn EmoBox điều chỉnh báo giá như thế nào?', '') || '';
+      const result = await EmoBoxApi.customGiftAction(currentRequest.requestCode, currentRequest.customer.email, 'requote', user(), { note });
+      if (!result.ok) {
+        showToast(result.error || 'Không gửi được yêu cầu báo giá lại.');
+        return;
+      }
+      currentRequest = result.request;
+      renderRequest();
+      showToast('Đã gửi yêu cầu báo giá lại.');
+    }
+
+    function removeRequestFromCart(requestCode) {
+      const cartItems = JSON.parse(localStorage.getItem('emobox_cart') || '[]')
+        .filter(item => item.customGiftRequestCode !== requestCode && item.id !== `custom_${requestCode}`);
+      localStorage.setItem('emobox_cart', JSON.stringify(cartItems));
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    document.getElementById('requestCode').value = params.get('code') || '';
+    document.getElementById('customerEmail').value = params.get('email') || (user() && user().email) || '';
+    if (document.getElementById('requestCode').value && document.getElementById('customerEmail').value) {
+      loadRequest();
+    }
+  </script>
+</body>
+</html>

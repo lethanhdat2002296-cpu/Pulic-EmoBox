@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thiết kế quà tặng của bạn - EmoBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: #f5fbff; }
+    .custom-wrap { padding: 110px 0 56px; }
+    .custom-head { max-width: 760px; margin-bottom: 28px; }
+    .custom-head h1 { font-family: "Playfair Display", serif; font-size: clamp(2rem, 4vw, 3.4rem); margin: 0 0 10px; color: #083344; }
+    .custom-head p { color: #34708f; line-height: 1.7; margin: 0; }
+    .custom-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 22px; align-items: start; }
+    .panel { background: #fff; border: 1px solid #b9ddf3; border-radius: 8px; padding: 22px; box-shadow: 0 18px 45px rgba(14, 116, 144, 0.08); }
+    .panel h2 { margin: 0 0 16px; font-size: 1.15rem; color: #0f3d56; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-weight: 800; color: #123746; font-size: 0.9rem; }
+    .field input, .field select, .field textarea { width: 100%; border: 1px solid #9ed3f1; border-radius: 8px; padding: 12px 13px; font: inherit; outline: none; background: #fff; }
+    .field textarea { min-height: 106px; resize: vertical; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12); }
+    .item-list { display: grid; gap: 10px; max-height: 260px; overflow: auto; padding-right: 4px; }
+    .gift-item { display: flex; align-items: center; gap: 10px; border: 1px solid #cfe8f7; border-radius: 8px; padding: 11px 12px; cursor: pointer; background: #f8fcff; }
+    .gift-item input { width: 18px; height: 18px; }
+    .hint { color: #64748b; font-size: 0.86rem; line-height: 1.6; }
+    .flow-list { display: grid; gap: 12px; margin-top: 14px; }
+    .flow-step { border-left: 3px solid #38bdf8; padding: 10px 0 10px 13px; color: #334155; line-height: 1.55; }
+    .success-box { display: none; margin-top: 16px; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; line-height: 1.6; }
+    .status-link { color: #0369a1; font-weight: 800; word-break: break-all; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    @media (max-width: 900px) {
+      .custom-layout, .form-grid { grid-template-columns: 1fr; }
+      .custom-wrap { padding-top: 92px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo"><img src="Logo.png" alt="EmoBox Logo" style="height:32px;object-fit:contain;"></a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html" class="nav-link">Trang chủ</a>
+        <div class="nav-dropdown">
+          <a href="emotion-gifts.html" class="nav-link">Quà cảm xúc <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="emotion-gifts.html?cat=an-ui-dong-vien" class="dropdown-item">An ủi và động viên</a>
+            <a href="emotion-gifts.html?cat=xin-loi-lam-hoa" class="dropdown-item">Xin lỗi và làm hòa</a>
+            <a href="emotion-gifts.html?cat=tiep-suc-truyen-dong-luc" class="dropdown-item">Tiếp sức và truyền động lực</a>
+            <a href="emotion-gifts.html?cat=yeu-thuong-quan-tam" class="dropdown-item">Yêu thương và quan tâm</a>
+            <a href="emotion-gifts.html?cat=chuc-mung-an-mung" class="dropdown-item">Chúc mừng và ăn mừng</a>
+            <a href="emotion-gifts.html?cat=healing-self-care" class="dropdown-item">Chăm sóc bản thân</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <a href="occasion-gifts.html" class="nav-link">Quà theo dịp <span class="chevron">▾</span></a>
+          <div class="dropdown-menu">
+            <a href="occasion-gifts.html?cat=tet" class="dropdown-item">Tết</a>
+            <a href="occasion-gifts.html?cat=valentine" class="dropdown-item">Valentine</a>
+            <a href="occasion-gifts.html?cat=8-3-20-10" class="dropdown-item">8/3 + 20/10</a>
+            <a href="occasion-gifts.html?cat=trung-thu" class="dropdown-item">Trung Thu</a>
+            <a href="occasion-gifts.html?cat=20-11" class="dropdown-item">20/11</a>
+            <a href="occasion-gifts.html?cat=noel" class="dropdown-item">Noel</a>
+          </div>
+        </div>
+        <a href="custom-gift.html" class="nav-link active">Thiết kế quà</a>
+        <a href="plans.html" class="nav-link">Gói thành viên</a>
+        <a href="calendar.html" class="nav-link">Đặt lịch</a>
+        <a href="contact.html" class="nav-link">Liên hệ</a>
+      </div>
+      <div class="nav-actions">
+        <a href="cart.html" class="btn-icon" id="cartBtn" title="Giỏ hàng">🛍️<span class="cart-badge" id="cartBadge">0</span></a>
+        <button class="btn-icon" onclick="toggleUserMenu()" id="userBtn" title="Tài khoản">👤</button>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-header"><div class="user-avatar-sm">U</div><div><p class="user-name">Tài khoản</p><p class="user-sub">Xem thông tin của bạn</p></div></div>
+          <div class="user-menu-body">
+            <a href="account.html" class="user-menu-item">Hồ sơ</a>
+            <a href="order-history.html" class="user-menu-item">Lịch sử đơn hàng</a>
+            <a href="track-order.html" class="user-menu-item">Theo dõi đơn hàng</a>
+            <a href="calendar.html" class="user-menu-item">Lịch tặng quà</a>
+            <a href="wallet.html" class="user-menu-item">Ví EmoBox</a>
+          </div>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="custom-wrap">
+    <div class="container">
+      <div class="custom-head">
+        <h1>Thiết kế quà tặng của bạn</h1>
+        <p>Chọn nền tảng quà, mô tả sản phẩm mong muốn hoặc gửi link tham khảo. EmoBox sẽ tiếp nhận yêu cầu, báo giá qua email và chỉ đưa vào giỏ hàng sau khi bạn xác nhận giá.</p>
+      </div>
+
+      <div class="custom-layout">
+        <section class="panel">
+          <h2>Thông tin yêu cầu</h2>
+          <form id="customGiftForm" class="form-grid">
+            <div class="field">
+              <label for="customerName">Họ và tên *</label>
+              <input id="customerName" required placeholder="Tên của bạn">
+            </div>
+            <div class="field">
+              <label for="customerPhone">Số điện thoại</label>
+              <input id="customerPhone" placeholder="Để EmoBox liên hệ khi cần">
+            </div>
+            <div class="field full">
+              <label for="customerEmail">Email nhận thông báo *</label>
+              <input id="customerEmail" type="email" required placeholder="email@example.com">
+            </div>
+            <div class="field">
+              <label for="giftPackage">Gói quà *</label>
+              <select id="giftPackage" required>
+                <option value="Gói Mini">Gói Mini</option>
+                <option value="Gói Basic">Gói Basic</option>
+                <option value="Gói Standard">Gói Standard</option>
+                <option value="Gói Premium Plus">Gói Premium Plus</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="giftGroup">Nhóm quà *</label>
+              <select id="giftGroup" required>
+                <option value="emotion">Quà cảm xúc</option>
+                <option value="occasion">Quà theo dịp</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="giftType">Loại quà *</label>
+              <select id="giftType" required></select>
+            </div>
+            <div class="field full">
+              <label>Sản phẩm đính kèm theo loại quà</label>
+              <div class="item-list" id="giftItems"></div>
+              <div class="hint">Bạn có thể chọn nhiều món. EmoBox sẽ dựa vào lựa chọn này để báo giá.</div>
+            </div>
+            <div class="field full">
+              <label for="productLinks">Link sản phẩm tham khảo</label>
+              <textarea id="productLinks" placeholder="Mỗi dòng một link sản phẩm, ví dụ link Shopee/TikTok Shop/website..."></textarea>
+            </div>
+            <div class="field">
+              <label for="imageUrl">Link hình ảnh tham khảo</label>
+              <input id="imageUrl" placeholder="https://...">
+            </div>
+            <div class="field">
+              <label for="imageFile">Hoặc tải ảnh nhỏ</label>
+              <input id="imageFile" type="file" accept="image/*">
+            </div>
+            <div class="field full">
+              <label for="customerNote">Ghi chú thêm</label>
+              <textarea id="customerNote" placeholder="Màu sắc, ngân sách dự kiến, phong cách, thời điểm cần nhận..."></textarea>
+            </div>
+            <div class="field full">
+              <button class="btn btn-primary" type="submit" style="height:52px;">Lưu yêu cầu thiết kế</button>
+              <div class="success-box" id="successBox"></div>
+            </div>
+          </form>
+        </section>
+
+        <aside class="panel">
+          <h2>Luồng xử lý</h2>
+          <div class="flow-list">
+            <div class="flow-step"><strong>1. Gửi yêu cầu</strong><br>Khách nhận email xác nhận EmoBox đã tiếp nhận.</div>
+            <div class="flow-step"><strong>2. Admin báo giá</strong><br>Admin nhập giá trong trang quản trị và gửi link xác nhận cho khách.</div>
+            <div class="flow-step"><strong>3. Khách xác nhận</strong><br>Khi đồng ý giá, sản phẩm thiết kế mới được thêm vào giỏ hàng.</div>
+            <div class="flow-step"><strong>4. Không đồng ý giá</strong><br>Khách có thể hủy yêu cầu hoặc yêu cầu EmoBox báo giá lại.</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const giftTypes = {
+      emotion: [
+        ['an-ui-dong-vien', 'An ủi và động viên'],
+        ['xin-loi-lam-hoa', 'Xin lỗi và làm hòa'],
+        ['tiep-suc-truyen-dong-luc', 'Tiếp sức và truyền động lực'],
+        ['yeu-thuong-quan-tam', 'Yêu thương và quan tâm'],
+        ['chuc-mung-an-mung', 'Chúc mừng và ăn mừng'],
+        ['healing-self-care', 'Chăm sóc bản thân']
+      ],
+      occasion: [
+        ['tet', 'Tết'],
+        ['valentine', 'Valentine'],
+        ['8-3-20-10', '8/3 + 20/10'],
+        ['trung-thu', 'Trung Thu'],
+        ['20-11', '20/11'],
+        ['noel', 'Noel']
+      ]
+    };
+
+    const itemSuggestions = {
+      default: ['Thiệp viết tay', 'Hoa khô', 'Nến thơm', 'Chocolate', 'Gấu bông nhỏ', 'Trà/cà phê', 'Tinh dầu', 'Phụ kiện trang trí'],
+      tet: ['Lì xì', 'Trà Tết', 'Mứt', 'Lịch để bàn', 'Hạt dinh dưỡng', 'Chocolate đỏ'],
+      valentine: ['Chocolate', 'Hoa sáp', 'Nến thơm', 'Gấu bông', 'Thiệp tình yêu', 'Nước hoa mini'],
+      'healing-self-care': ['Tinh dầu', 'Muối tắm', 'Trà thư giãn', 'Nến thơm', 'Sổ tay', 'Mặt nạ chăm sóc']
+    };
+
+    let uploadedImageData = '';
+
+    function currentUser() {
+      try { return JSON.parse(localStorage.getItem('emobox_user') || 'null'); } catch (err) { return null; }
+    }
+
+    function prefillUser() {
+      const user = currentUser();
+      if (!user) return;
+      document.getElementById('customerName').value = user.name || '';
+      document.getElementById('customerEmail').value = user.email || '';
+      document.getElementById('customerPhone').value = user.phone || '';
+    }
+
+    function renderGiftTypes() {
+      const group = document.getElementById('giftGroup').value;
+      const typeSelect = document.getElementById('giftType');
+      typeSelect.innerHTML = (giftTypes[group] || []).map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+      renderGiftItems();
+    }
+
+    function renderGiftItems() {
+      const type = document.getElementById('giftType').value;
+      const items = itemSuggestions[type] || itemSuggestions.default;
+      document.getElementById('giftItems').innerHTML = items.map(item => `
+        <label class="gift-item">
+          <input type="checkbox" value="${item}">
+          <span>${item}</span>
+        </label>
+      `).join('');
+    }
+
+    function readSelectedItems() {
+      return Array.from(document.querySelectorAll('#giftItems input:checked')).map(input => input.value);
+    }
+
+    function readProductLinks() {
+      return document.getElementById('productLinks').value
+        .split(/\r?\n|,/)
+        .map(item => item.trim())
+        .filter(Boolean);
+    }
+
+    document.getElementById('giftGroup').addEventListener('change', renderGiftTypes);
+    document.getElementById('giftType').addEventListener('change', renderGiftItems);
+    document.getElementById('imageFile').addEventListener('change', event => {
+      const file = event.target.files && event.target.files[0];
+      uploadedImageData = '';
+      if (!file) return;
+      if (file.size > 700000) {
+        showToast('Ảnh hơi lớn, bạn nên dán link ảnh thay vì tải trực tiếp.');
+        event.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => { uploadedImageData = reader.result || ''; };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('customGiftForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const typeSelect = document.getElementById('giftType');
+      const request = {
+        customer: {
+          name: document.getElementById('customerName').value.trim(),
+          email: document.getElementById('customerEmail').value.trim(),
+          phone: document.getElementById('customerPhone').value.trim()
+        },
+        giftPackage: document.getElementById('giftPackage').value,
+        giftGroup: document.getElementById('giftGroup').value === 'emotion' ? 'Quà cảm xúc' : 'Quà theo dịp',
+        giftType: typeSelect.options[typeSelect.selectedIndex] && typeSelect.options[typeSelect.selectedIndex].textContent || typeSelect.value,
+        selectedItems: readSelectedItems(),
+        productLinks: readProductLinks(),
+        attachmentUrl: document.getElementById('imageUrl').value.trim() || uploadedImageData,
+        customerNote: document.getElementById('customerNote').value.trim()
+      };
+
+      const result = await EmoBoxApi.createCustomGiftRequest(request, currentUser());
+      if (!result.ok) {
+        showToast('Không lưu được yêu cầu: ' + (result.error || 'Lỗi không rõ'));
+        return;
+      }
+
+      const box = document.getElementById('successBox');
+      box.style.display = 'block';
+      box.innerHTML = `
+        EmoBox đã nhận yêu cầu của bạn.<br>
+        Mã yêu cầu: <strong>${result.request.requestCode}</strong><br>
+        Link theo dõi: <a class="status-link" href="${result.quoteLink}">${result.quoteLink}</a>
+      `;
+      showToast(result.email && result.email.sent ? 'Đã gửi email xác nhận cho khách.' : 'Đã lưu yêu cầu, email đang chờ cấu hình/kiểm tra.');
+      event.target.reset();
+      uploadedImageData = '';
+      renderGiftTypes();
+    });
+
+    prefillUser();
+    renderGiftTypes();
+  </script>
+</body>
+</html>
