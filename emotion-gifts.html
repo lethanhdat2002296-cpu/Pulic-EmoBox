@@ -285,9 +285,31 @@
       premium:  { accent: 'linear-gradient(90deg,#a78bfa,#7c3aed)', highlight: false, btnClass: 'pkg-btn-outline', btnStyle: 'width:100%; border-color:#a78bfa; color:#7c3aed;', badge: 'Plus', badgeStyle: 'background:#7c3aed;' }
     };
 
+    function renderCategoryLanding() {
+      const grid = document.getElementById('packagesGrid');
+      if (!grid) return;
+      document.getElementById('catTitle').textContent = 'Quà Tặng Cảm Xúc';
+      document.getElementById('catDesc').textContent = 'Chọn một loại cảm xúc để xem các gói quà phù hợp';
+      document.getElementById('catBanner').style.background = '#e0f2fe';
+      grid.innerHTML = Object.entries(categories).map(([id, info]) => `
+        <div class="pkg-card" style="cursor:pointer;" onclick="window.location.href='emotion-gifts.html?cat=${id}'">
+          <div class="pkg-accent" style="background:${info.bg};"></div>
+          <div class="pkg-header">
+            <p class="pkg-name">${info.title}</p>
+          </div>
+          <p style="color:var(--text-muted);line-height:1.6;min-height:54px;">${info.desc}</p>
+          <button class="pkg-btn pkg-btn-outline" style="width:100%;margin-top:1rem;">Xem các gói quà</button>
+        </div>
+      `).join('');
+    }
+
     function renderPackages() {
       const grid = document.getElementById('packagesGrid');
       if (!grid) return;
+      if (!cat || !categories[cat]) {
+        renderCategoryLanding();
+        return;
+      }
       const tiers = ['mini', 'basic', 'standard', 'premium'];
       grid.innerHTML = tiers.map(key => {
         const d = PKG_DATA[key];
